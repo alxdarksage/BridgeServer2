@@ -5,6 +5,7 @@ import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY;
 import static org.sagebionetworks.bridge.TestConstants.TIMESTAMP;
 import static org.sagebionetworks.bridge.TestConstants.USER_ID;
+import static org.sagebionetworks.bridge.models.studies.MimeType.HTML;
 import static org.sagebionetworks.bridge.models.studies.MimeType.TEXT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
@@ -26,6 +27,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import org.sagebionetworks.bridge.TestConstants;
+import org.sagebionetworks.bridge.config.BridgeConfig;
 import org.sagebionetworks.bridge.dao.TemplateDao;
 import org.sagebionetworks.bridge.dao.TemplateRevisionDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
@@ -50,6 +52,9 @@ public class TemplateRevisionServiceTest extends Mockito {
     @Mock
     TemplateRevisionDao mockTemplateRevisionDao;
     
+    @Mock
+    BridgeConfig bridgeConfig;
+    
     @InjectMocks
     @Spy
     TemplateRevisionService service;
@@ -63,6 +68,9 @@ public class TemplateRevisionServiceTest extends Mockito {
     @BeforeMethod
     public void beforeMethod() {
         MockitoAnnotations.initMocks(this);
+        
+        when(bridgeConfig.get("webservices.url")).thenReturn("https://sagebase.org/");
+        service.setBridgeConfig(bridgeConfig);
         
         when(service.getDateTime()).thenReturn(TIMESTAMP);
         when(service.getUserId()).thenReturn(USER_ID);
@@ -140,6 +148,24 @@ public class TemplateRevisionServiceTest extends Mockito {
         assertEquals(captured.getDocumentContent(), DOCUMENT_CONTENT);
         assertEquals(captured.getMimeType(), TEXT);
         assertEquals(captured.getSubject(), SUBJECT);
+    }
+    
+    @Test
+    public void createTemplateRevisionSanitizesHTML() throws Exception {
+        mockGetTemplate();
+        
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setMimeType(HTML);
+        revision.setSubject("<p>${studyName} test</p>");
+        revision.setDocumentContent("<p>This should remove: <iframe src=''></iframe></p>");
+        
+        service.createTemplateRevision(TEST_STUDY, TEMPLATE_GUID, revision);
+        
+        verify(mockTemplateRevisionDao).createTemplateRevision(revisionCaptor.capture());
+        TemplateRevision captured = revisionCaptor.getValue();
+
+        assertEquals(captured.getSubject(), "${studyName} test");
+        assertEquals(captured.getDocumentContent(), "<p>This should remove: </p>");
     }
     
     @Test(expectedExceptions = EntityNotFoundException.class)

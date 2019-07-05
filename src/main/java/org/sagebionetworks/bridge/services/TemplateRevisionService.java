@@ -1,15 +1,21 @@
 package org.sagebionetworks.bridge.services;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
+import static org.sagebionetworks.bridge.BridgeConstants.CKEDITOR_WHITELIST;
+import static org.sagebionetworks.bridge.models.studies.MimeType.TEXT;
 import static org.sagebionetworks.bridge.validators.TemplateRevisionValidator.INSTANCE;
 
 import org.joda.time.DateTime;
+import org.jsoup.Jsoup;
+import org.jsoup.safety.Whitelist;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import org.sagebionetworks.bridge.BridgeUtils;
+import org.sagebionetworks.bridge.config.BridgeConfig;
 import org.sagebionetworks.bridge.dao.TemplateDao;
 import org.sagebionetworks.bridge.dao.TemplateRevisionDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
@@ -28,6 +34,8 @@ public class TemplateRevisionService {
     
     private TemplateRevisionDao templateRevisionDao;
     
+    private String baseUrl;
+    
     @Autowired
     final void setTemplateDao(TemplateDao templateDao) {
         this.templateDao = templateDao;
@@ -36,6 +44,11 @@ public class TemplateRevisionService {
     @Autowired
     final void setTemplateRevisionDao(TemplateRevisionDao templateRevisionDao) {
         this.templateRevisionDao = templateRevisionDao;
+    }
+    
+    @Autowired
+    final void setBridgeConfig(BridgeConfig config) {
+        this.baseUrl = config.get("webservices.url");
     }
     
     public PagedResourceList<? extends TemplateRevision> getTemplateRevisions(StudyIdentifier studyId,
@@ -79,6 +92,7 @@ public class TemplateRevisionService {
         revision.setTemplateGuid(templateGuid);
         revision.setCreatedBy(getUserId());
         revision.setStoragePath(storagePath);
+        sanitizeEmailTemplate(revision);
         
         Validate.entityThrowingException(INSTANCE, revision);
         
@@ -123,5 +137,26 @@ public class TemplateRevisionService {
     
     protected DateTime getDateTime() {
         return DateTime.now();
+    }
+    
+    private void sanitizeEmailTemplate(TemplateRevision revision) {
+        String subject = revision.getSubject();
+        if (isNotBlank(subject)) {
+            subject = Jsoup.clean(subject, Whitelist.none());
+            
+        }
+        revision.setSubject(subject);
+        
+        String body = revision.getDocumentContent();
+        if (isNotBlank(body)) {
+            if (revision.getMimeType() == TEXT) {
+                body = Jsoup.clean(body, Whitelist.none());
+            } else {
+                // Providing the baseUrl allows relative URLs to be preserved, which we're interested in 
+                // so users can link template variables, e.g. <a href="${url}">${url}</a>
+                body = Jsoup.clean(body, baseUrl, CKEDITOR_WHITELIST);
+            }
+        }
+        revision.setDocumentContent(body);
     }
 }
