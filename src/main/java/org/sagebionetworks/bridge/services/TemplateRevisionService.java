@@ -6,7 +6,6 @@ import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.CKEDITOR_WHITELIST;
 import static org.sagebionetworks.bridge.models.studies.MimeType.TEXT;
-import static org.sagebionetworks.bridge.validators.TemplateRevisionValidator.INSTANCE;
 
 import org.joda.time.DateTime;
 import org.jsoup.Jsoup;
@@ -22,9 +21,11 @@ import org.sagebionetworks.bridge.exceptions.BadRequestException;
 import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
 import org.sagebionetworks.bridge.models.CreatedOnHolder;
 import org.sagebionetworks.bridge.models.PagedResourceList;
+import org.sagebionetworks.bridge.models.studies.MimeType;
 import org.sagebionetworks.bridge.models.studies.StudyIdentifier;
 import org.sagebionetworks.bridge.models.templates.Template;
 import org.sagebionetworks.bridge.models.templates.TemplateRevision;
+import org.sagebionetworks.bridge.validators.TemplateRevisionValidator;
 import org.sagebionetworks.bridge.validators.Validate;
 
 @Component
@@ -85,16 +86,19 @@ public class TemplateRevisionService {
         String storagePath = templateGuid + "." + createdOn.getMillis();
 
         // verify the template GUID is in the user's study.
-        templateDao.getTemplate(studyId, templateGuid)
+        Template template = templateDao.getTemplate(studyId, templateGuid)
                 .orElseThrow(() -> new EntityNotFoundException(Template.class));
         
         revision.setCreatedOn(createdOn);
         revision.setTemplateGuid(templateGuid);
         revision.setCreatedBy(getUserId());
         revision.setStoragePath(storagePath);
-        sanitizeEmailTemplate(revision);
+        if (revision.getMimeType() == MimeType.HTML) {
+            sanitizeTemplateRevision(revision);    
+        }
         
-        Validate.entityThrowingException(INSTANCE, revision);
+        TemplateRevisionValidator validator = new TemplateRevisionValidator(template.getTemplateType());
+        Validate.entityThrowingException(validator, revision);
         
         templateRevisionDao.createTemplateRevision(revision);
         
@@ -139,11 +143,10 @@ public class TemplateRevisionService {
         return DateTime.now();
     }
     
-    private void sanitizeEmailTemplate(TemplateRevision revision) {
+    protected void sanitizeTemplateRevision(TemplateRevision revision) {
         String subject = revision.getSubject();
         if (isNotBlank(subject)) {
             subject = Jsoup.clean(subject, Whitelist.none());
-            
         }
         revision.setSubject(subject);
         

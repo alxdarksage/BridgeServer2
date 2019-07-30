@@ -47,6 +47,7 @@ import org.springframework.core.io.Resource;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import org.sagebionetworks.bridge.TestConstants;
 import org.sagebionetworks.bridge.TestUtils;
 import org.sagebionetworks.bridge.dao.CriteriaDao;
 import org.sagebionetworks.bridge.dao.TemplateDao;
@@ -126,6 +127,7 @@ public class TemplateServiceTest extends Mockito {
         when(service.getUserId()).thenReturn(USER_ID);
         
         study = Study.create();
+        study.setIdentifier(TEST_STUDY_IDENTIFIER);
         study.setDataGroups(USER_DATA_GROUPS);
         study.setDefaultTemplates(new HashMap<>());
         when(mockStudyService.getStudy(TEST_STUDY)).thenReturn(study);
@@ -442,7 +444,7 @@ public class TemplateServiceTest extends Mockito {
         TemplateRevision revision = TemplateRevision.create();
         revision.setDocumentContent("Yo, sign in by phone");
         
-        service.migrateTemplate(TEST_STUDY, template, revision);
+        service.migrateTemplate(study, template, revision);
         
         verify(mockTemplateRevisionDao).createTemplateRevision(revision);
         verify(mockTemplateDao).createTemplate(eq(template), any());

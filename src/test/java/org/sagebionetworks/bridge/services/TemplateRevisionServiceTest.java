@@ -7,6 +7,7 @@ import static org.sagebionetworks.bridge.TestConstants.TIMESTAMP;
 import static org.sagebionetworks.bridge.TestConstants.USER_ID;
 import static org.sagebionetworks.bridge.models.studies.MimeType.HTML;
 import static org.sagebionetworks.bridge.models.studies.MimeType.TEXT;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_SIGN_IN;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 
@@ -41,7 +42,7 @@ import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 public class TemplateRevisionServiceTest extends Mockito {
     
     private static final String SUBJECT = "Test SMS subject line";
-    private static final String DOCUMENT_CONTENT = "Test SMS message";
+    private static final String DOCUMENT_CONTENT = "Test SMS message ${url}";
     private static final String TEMPLATE_GUID = "oneTemplateGuid";
     private static final DateTime CREATED_ON = TestConstants.TIMESTAMP;
     private static final String STORAGE_PATH = TEMPLATE_GUID + "." + CREATED_ON.getMillis();
@@ -157,7 +158,7 @@ public class TemplateRevisionServiceTest extends Mockito {
         TemplateRevision revision = TemplateRevision.create();
         revision.setMimeType(HTML);
         revision.setSubject("<p>${studyName} test</p>");
-        revision.setDocumentContent("<p>This should remove: <iframe src=''></iframe></p>");
+        revision.setDocumentContent("<p>This should remove iframe ${url}: <iframe src=''></iframe></p>");
         
         service.createTemplateRevision(TEST_STUDY, TEMPLATE_GUID, revision);
         
@@ -165,7 +166,7 @@ public class TemplateRevisionServiceTest extends Mockito {
         TemplateRevision captured = revisionCaptor.getValue();
 
         assertEquals(captured.getSubject(), "${studyName} test");
-        assertEquals(captured.getDocumentContent(), "<p>This should remove: </p>");
+        assertEquals(captured.getDocumentContent(), "<p>This should remove iframe ${url}: </p>");
     }
     
     @Test(expectedExceptions = EntityNotFoundException.class)
@@ -227,8 +228,67 @@ public class TemplateRevisionServiceTest extends Mockito {
         service.publishTemplateRevision(TEST_STUDY, TEMPLATE_GUID, CREATED_ON);
     }
     
+    @Test
+    public void textTemplateIsSanitized() {
+        TemplateRevision source = TemplateRevision.create();
+        source.setSubject("<p>Test</p>");
+        source.setDocumentContent("<p>This should have no markup</p>");
+        source.setMimeType(TEXT);
+        service.sanitizeTemplateRevision(source);
+        
+        assertEquals(source.getSubject(), "Test");
+        assertEquals(source.getDocumentContent(), "This should have no markup");
+        assertEquals(source.getMimeType(), TEXT);
+    }
+    
+    @Test
+    public void htmlTemplateIsSanitized() {
+        TemplateRevision source = TemplateRevision.create();
+        source.setSubject("<p>${studyName} test</p>");
+        source.setDocumentContent("<p>This should remove: <iframe src=''></iframe></p>");
+        source.setMimeType(HTML);
+        service.sanitizeTemplateRevision(source);
+        
+        assertHtmlTemplateSanitized(source);
+    }
+    
+    @Test
+    public void htmlTemplatePreservesLinksWithTemplateVariables() {
+        TemplateRevision source = TemplateRevision.create();
+        source.setSubject("");
+        source.setDocumentContent("<p><a href=\"http://www.google.com/\"></a><a href=\"/foo.html\">Foo</a><a href=\"${url}\">${url}</a></p>");
+        source.setMimeType(HTML);
+        
+        service.sanitizeTemplateRevision(source);
+        
+        // The absolute, relative, and template URLs are all preserved correctly. 
+        assertEquals(source.getDocumentContent(),
+                "<p><a href=\"http://www.google.com/\"></a><a href=\"/foo.html\">Foo</a><a href=\"${url}\">${url}</a></p>");
+    }
+    
+    @Test
+    public void emptyTemplateIsSanitized() {
+        TemplateRevision source = TemplateRevision.create();
+        source.setSubject("");
+        source.setDocumentContent("");
+        source.setMimeType(HTML);
+        
+        service.sanitizeTemplateRevision(source);
+        
+        assertEquals(source.getSubject(), "");
+        assertEquals(source.getDocumentContent(), "");
+        assertEquals(source.getMimeType(), HTML);
+    }
+    
+    private void assertHtmlTemplateSanitized(TemplateRevision result) {
+        assertEquals(result.getSubject(), "${studyName} test");
+        assertEquals(result.getDocumentContent(), "<p>This should remove: </p>");
+        assertEquals(result.getMimeType(), HTML);
+    }
+    
     private void mockGetTemplate() {
         Template template = Template.create();
+        template.setTemplateType(EMAIL_SIGN_IN);
         when(mockTemplateDao.getTemplate(TEST_STUDY, TEMPLATE_GUID)).thenReturn(Optional.of(template));
     }
 

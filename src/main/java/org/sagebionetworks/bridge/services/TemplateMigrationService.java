@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 
@@ -56,7 +55,7 @@ public class TemplateMigrationService {
      */
     public boolean migrateTemplates(Study study) {
         StudyIdentifier studyId = study.getStudyIdentifier();
-        Map<String,String> studyDefaults = ImmutableMap.copyOf(study.getDefaultTemplates());
+        Map<String,String> studyDefaults = study.getDefaultTemplates();
         // Shortcut studies that have been entirely  migrated.
         if (TemplateType.values().length == studyDefaults.size()) {
             return false;
@@ -134,7 +133,7 @@ public class TemplateMigrationService {
             Template template = Template.create();
             template.setName(typeNameToLabel(type));
             template.setTemplateType(type);
-            GuidVersionHolder keys = templateService.migrateTemplate(study.getStudyIdentifier(), template, revision);
+            GuidVersionHolder keys = templateService.migrateTemplate(study, template, revision);
             defaultTemplates.put(type.name().toLowerCase(), keys.getGuid());        
         }
     }

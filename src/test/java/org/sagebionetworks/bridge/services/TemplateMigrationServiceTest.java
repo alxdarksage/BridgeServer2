@@ -73,13 +73,18 @@ public class TemplateMigrationServiceTest extends Mockito {
     @Captor
     ArgumentCaptor<TemplateRevision> revisionCaptor;
     
+    Study study;
+    
     @BeforeMethod
     void beforeMethod() throws Exception {
         MockitoAnnotations.initMocks(this);
         
+        study = Study.create();
+        study.setIdentifier(TEST_STUDY_IDENTIFIER);
+        
         GuidVersionHolder keys = new GuidVersionHolder(TEMPLATE_GUID, 1L);
         when(mockTemplateService.createTemplate(eq(TEST_STUDY), any())).thenReturn(keys);
-        when(mockTemplateService.migrateTemplate(eq(TEST_STUDY), any(), any())).thenReturn(keys);
+        when(mockTemplateService.migrateTemplate(eq(study), any(), any())).thenReturn(keys);
         
         CreatedOnHolder revKeys = new CreatedOnHolder(CREATED_ON);
         when(mockTemplateRevisionService.createTemplateRevision(eq(TEST_STUDY), eq(TEMPLATE_GUID), any())).thenReturn(revKeys);
@@ -92,24 +97,6 @@ public class TemplateMigrationServiceTest extends Mockito {
         study.setIdentifier(TEST_STUDY_IDENTIFIER);
         return study;
     }
-    
-    private Study createUnmigratedStudy() {
-        Study study = Study.create();
-        study.setIdentifier(TEST_STUDY_IDENTIFIER);
-        study.setVerifyEmailTemplate( emailTemplate(EMAIL_VERIFY_EMAIL) );
-        study.setResetPasswordTemplate( emailTemplate(EMAIL_RESET_PASSWORD) );
-        study.setEmailSignInTemplate( emailTemplate(EMAIL_SIGN_IN) );
-        study.setAccountExistsTemplate( emailTemplate(EMAIL_ACCOUNT_EXISTS) );
-        study.setSignedConsentTemplate( emailTemplate(EMAIL_SIGNED_CONSENT) );
-        study.setAppInstallLinkTemplate( emailTemplate(EMAIL_APP_INSTALL_LINK) );
-        study.setResetPasswordSmsTemplate( smsTemplate(SMS_RESET_PASSWORD) );
-        study.setPhoneSignInSmsTemplate( smsTemplate(SMS_PHONE_SIGN_IN) );
-        study.setAppInstallLinkSmsTemplate( smsTemplate(SMS_APP_INSTALL_LINK) );
-        study.setVerifyPhoneSmsTemplate( smsTemplate(SMS_VERIFY_PHONE) );
-        study.setAccountExistsSmsTemplate( smsTemplate(SMS_ACCOUNT_EXISTS) );
-        study.setSignedConsentSmsTemplate( smsTemplate(SMS_SIGNED_CONSENT) );
-        return study;
-    }    
     
     private Study createMigratedStudy() {
         Study study = Study.create();
@@ -183,7 +170,19 @@ public class TemplateMigrationServiceTest extends Mockito {
     public void unmigratedStudyMigrated() throws Exception {
         mockNoTemplates();
         
-        Study study = createUnmigratedStudy();
+        study.setIdentifier(TEST_STUDY_IDENTIFIER);
+        study.setVerifyEmailTemplate( emailTemplate(EMAIL_VERIFY_EMAIL) );
+        study.setResetPasswordTemplate( emailTemplate(EMAIL_RESET_PASSWORD) );
+        study.setEmailSignInTemplate( emailTemplate(EMAIL_SIGN_IN) );
+        study.setAccountExistsTemplate( emailTemplate(EMAIL_ACCOUNT_EXISTS) );
+        study.setSignedConsentTemplate( emailTemplate(EMAIL_SIGNED_CONSENT) );
+        study.setAppInstallLinkTemplate( emailTemplate(EMAIL_APP_INSTALL_LINK) );
+        study.setResetPasswordSmsTemplate( smsTemplate(SMS_RESET_PASSWORD) );
+        study.setPhoneSignInSmsTemplate( smsTemplate(SMS_PHONE_SIGN_IN) );
+        study.setAppInstallLinkSmsTemplate( smsTemplate(SMS_APP_INSTALL_LINK) );
+        study.setVerifyPhoneSmsTemplate( smsTemplate(SMS_VERIFY_PHONE) );
+        study.setAccountExistsSmsTemplate( smsTemplate(SMS_ACCOUNT_EXISTS) );
+        study.setSignedConsentSmsTemplate( smsTemplate(SMS_SIGNED_CONSENT) );
         
         boolean result = service.migrateTemplates(study);
         assertTrue(result);
@@ -191,7 +190,7 @@ public class TemplateMigrationServiceTest extends Mockito {
         MapDifference<String, String> diff = Maps.difference(createMigratedStudy().getDefaultTemplates(), study.getDefaultTemplates());
         assertTrue(diff.areEqual());
         
-        verify(mockTemplateService, times(12)).migrateTemplate(eq(TEST_STUDY), templateCaptor.capture(), revisionCaptor.capture());
+        verify(mockTemplateService, times(12)).migrateTemplate(eq(study), templateCaptor.capture(), revisionCaptor.capture());
         for (TemplateRevision revision : revisionCaptor.getAllValues()) {
             assertTrue(revision.getDocumentContent().contains("from study"));
         }
@@ -305,14 +304,13 @@ public class TemplateMigrationServiceTest extends Mockito {
     @Test
     public void migrateExistingTemplate() { 
         Map<String, String> map = new HashMap<>();
-        Study study = Study.create();
         study.setIdentifier(TEST_STUDY_IDENTIFIER);
         study.setVerifyPhoneSmsTemplate(new SmsTemplate("One message"));
         
         service.migrateExistingTemplate(map, study, SMS_VERIFY_PHONE);
         assertEquals(map.get(SMS_VERIFY_PHONE.name().toLowerCase()), TEMPLATE_GUID);
         
-        verify(mockTemplateService).migrateTemplate(eq(TEST_STUDY), templateCaptor.capture(), revisionCaptor.capture());
+        verify(mockTemplateService).migrateTemplate(eq(study), templateCaptor.capture(), revisionCaptor.capture());
         assertEquals(templateCaptor.getValue().getName(), "Verify Phone Default (SMS)");
         assertEquals(templateCaptor.getValue().getTemplateType(), SMS_VERIFY_PHONE);        
 

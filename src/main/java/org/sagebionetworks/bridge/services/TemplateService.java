@@ -301,15 +301,15 @@ public class TemplateService {
             revision.setDocumentContent(triple.getMiddle());
             revision.setMimeType(triple.getRight());
         }
-        return migrateTemplate(studyId, template, revision);
+        Study study = studyService.getStudy(studyId);
+        return migrateTemplate(study, template, revision);
     }
     
-    public GuidVersionHolder migrateTemplate(StudyIdentifier studyId, Template template, TemplateRevision revision) {
-        checkNotNull(studyId);
+    public GuidVersionHolder migrateTemplate(Study study, Template template, TemplateRevision revision) {
+        checkNotNull(study);
         checkNotNull(template);
         checkNotNull(revision);
         
-        Study study = studyService.getStudy(studyId);
         Set<String> substudyIds = substudyService.getSubstudyIds(study.getStudyIdentifier());
         
         TemplateValidator validator = new TemplateValidator(study.getDataGroups(), substudyIds);
@@ -318,8 +318,14 @@ public class TemplateService {
         String templateGuid = generateGuid();
         DateTime timestamp = getTimestamp();
         String storagePath = templateGuid + "." + timestamp.getMillis();
-
-        template.setStudyId(studyId.getIdentifier());
+        
+        revision.setCreatedBy(getUserId());
+        revision.setCreatedOn(timestamp);
+        revision.setTemplateGuid(templateGuid);
+        revision.setCreatedBy(getUserId());
+        revision.setStoragePath(storagePath);
+        
+        template.setStudyId(study.getIdentifier());
         template.setDeleted(false);
         template.setVersion(0);
         template.setGuid(templateGuid);
@@ -439,6 +445,7 @@ public class TemplateService {
     }
     
     String getUserId() {
-        return BridgeUtils.getRequestContext().getCallerUserId();
+        String userId = BridgeUtils.getRequestContext().getCallerUserId();
+        return (userId != null) ? userId : "system";
     }
 }
