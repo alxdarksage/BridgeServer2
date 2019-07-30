@@ -5,6 +5,7 @@ import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY;
 import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY_IDENTIFIER;
 import static org.sagebionetworks.bridge.TestConstants.TIMESTAMP;
 import static org.sagebionetworks.bridge.TestConstants.USER_DATA_GROUPS;
+import static org.sagebionetworks.bridge.TestConstants.USER_ID;
 import static org.sagebionetworks.bridge.TestConstants.USER_SUBSTUDY_IDS;
 import static org.sagebionetworks.bridge.models.studies.MimeType.HTML;
 import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_ACCOUNT_EXISTS;
@@ -122,6 +123,7 @@ public class TemplateServiceTest extends Mockito {
         service.makeDefaultTemplateMap();
         when(service.generateGuid()).thenReturn(GUID1);
         when(service.getTimestamp()).thenReturn(TIMESTAMP);
+        when(service.getUserId()).thenReturn(USER_ID);
         
         study = Study.create();
         study.setDataGroups(USER_DATA_GROUPS);
@@ -375,7 +377,7 @@ public class TemplateServiceTest extends Mockito {
             Template captured = answer.getArgument(0);
             captured.setVersion(10);
             return null;
-        }).when(mockTemplateDao).createTemplate(any());
+        }).when(mockTemplateDao).createTemplate(any(), any());
         
         Criteria criteria = Criteria.create();
         criteria.setAllOfGroups(ImmutableSet.of("group1", "group2"));
@@ -402,9 +404,14 @@ public class TemplateServiceTest extends Mockito {
         
         verify(mockTemplateRevisionDao).createTemplateRevision(revisionCaptor.capture());
         verify(mockCriteriaDao).createOrUpdateCriteria(criteria);
-        verify(mockTemplateDao).createTemplate(template);
+        verify(mockTemplateDao).createTemplate(eq(template), any());
         
         TemplateRevision revision = revisionCaptor.getValue();
+        assertEquals(revision.getCreatedBy(), USER_ID);
+        assertEquals(revision.getCreatedOn(), TIMESTAMP);
+        assertEquals(revision.getTemplateGuid(), GUID1);
+        assertEquals(revision.getStoragePath(), GUID1 + "." + TIMESTAMP.getMillis());
+        
         assertEquals(revision.getSubject(), EMAIL_RESET_PASSWORD.name());
         assertEquals(revision.getDocumentContent(), EMAIL_RESET_PASSWORD.name());
         assertEquals(revision.getMimeType(), HTML);
@@ -438,7 +445,7 @@ public class TemplateServiceTest extends Mockito {
         service.migrateTemplate(TEST_STUDY, template, revision);
         
         verify(mockTemplateRevisionDao).createTemplateRevision(revision);
-        verify(mockTemplateDao).createTemplate(template);
+        verify(mockTemplateDao).createTemplate(eq(template), any());
     }
     
     @Test
