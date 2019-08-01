@@ -16,6 +16,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -544,7 +545,9 @@ public class TestUtils {
         study.setAccountLimit(0);
         study.setPushNotificationARNs(pushNotificationARNs);
         study.setAutoVerificationPhoneSuppressed(true);
-        study.setDefaultTemplates(ImmutableMap.of(EMAIL_ACCOUNT_EXISTS.name().toLowerCase(), "ABC-DEF"));
+        Map<String,String> map = new HashMap<>();
+        map.put(EMAIL_ACCOUNT_EXISTS.name().toLowerCase(), "ABC-DEF");
+        study.setDefaultTemplates(map);
         return study;
     }
 

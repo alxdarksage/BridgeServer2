@@ -181,8 +181,12 @@ public abstract class BaseController {
         
         // Update request context with security-related information about the user. This will be
         // immediately removed from the thread local if an exception is thrown.
+        // RequestContext is evolving to replace CriteriaContext because of the many places we are 
+        // now tailoring server content based on factors like app version or language.
         String requestId = request().getHeader(X_REQUEST_ID_HEADER);
         RequestContext.Builder builder = new RequestContext.Builder().withRequestId(requestId);
+        builder.withCallerClientInfo(getClientInfoFromUserAgentHeader());
+        builder.withCallerLanguages(getLanguagesFromAcceptLanguageHeader());
         builder.withCallerStudyId(session.getStudyIdentifier());
         builder.withCallerSubstudies(session.getParticipant().getSubstudyIds());
         builder.withCallerRoles(session.getParticipant().getRoles());

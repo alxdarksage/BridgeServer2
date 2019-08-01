@@ -11,9 +11,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import org.sagebionetworks.bridge.exceptions.BridgeServiceException;
-import org.sagebionetworks.bridge.models.studies.EmailTemplate;
 import org.sagebionetworks.bridge.models.studies.MimeType;
 import org.sagebionetworks.bridge.models.studies.Study;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 import org.sagebionetworks.bridge.services.email.BasicEmailProvider;
 
 import com.amazonaws.services.simpleemail.AmazonSimpleEmailServiceClient;
@@ -57,7 +57,7 @@ public class SendMailViaAmazonServiceTest {
         BasicEmailProvider provider = new BasicEmailProvider.Builder()
                 .withStudy(study)
                 .withRecipientEmail(RECIPIENT_EMAIL)
-                .withEmailTemplate(new EmailTemplate("subject", "body", MimeType.HTML))
+                .withTemplateRevision(TemplateRevision.create())
                 .build();
         try {
             service.sendEmail(provider);
@@ -72,10 +72,15 @@ public class SendMailViaAmazonServiceTest {
         when(emailClient.sendRawEmail(any())).thenReturn(result);
         when(emailVerificationService.isVerified(SUPPORT_EMAIL)).thenReturn(true);
         
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject("subject");
+        revision.setDocumentContent("body");
+        revision.setMimeType(MimeType.HTML);
+        
         BasicEmailProvider provider = new BasicEmailProvider.Builder()
                 .withStudy(study)
                 .withRecipientEmail(RECIPIENT_EMAIL)
-                .withEmailTemplate(new EmailTemplate("subject", "body", MimeType.HTML))
+                .withTemplateRevision(revision)
                 .build();
         service.sendEmail(provider);
     }

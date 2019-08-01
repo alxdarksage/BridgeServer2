@@ -41,6 +41,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import org.sagebionetworks.bridge.BridgeUtils;
+import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.dao.CriteriaDao;
 import org.sagebionetworks.bridge.dao.TemplateDao;
 import org.sagebionetworks.bridge.dao.TemplateRevisionDao;
@@ -209,7 +210,26 @@ public class TemplateService {
         defaultTemplatesMap.put(SMS_VERIFY_PHONE, Triple.of(null, defaultVerifyPhoneSmsTemplate, TEXT));
     }
     
-    public Template getTemplateForUser(CriteriaContext context, TemplateType type) {
+    public TemplateRevision getRevisionForUser(Study study, TemplateType type) {
+        RequestContext reqContext = BridgeUtils.getRequestContext();
+        CriteriaContext context = new CriteriaContext.Builder()
+            .withClientInfo(reqContext.getCallerClientInfo())
+            .withLanguages(reqContext.getCallerLanguages())
+            .withStudyIdentifier(study.getStudyIdentifier())
+            .build();
+        
+        Template template = getTemplateForUser(study, context, type);
+        if (template == null) {
+            LOG.info("No migrated template '"+type.name()+"' in study '"+study.getIdentifier()+"', using study template");
+            // During migration, if the template doesn't exist, then look in the study. This makes it 
+            // possible to reduce migration call to updates *only*.
+            return TemplateMigrationService.getRevisionFromStudy(study, type);
+        }
+        return templateRevisionDao.getTemplateRevision(template.getGuid(), template.getPublishedCreatedOn())
+                .orElseThrow(() -> new EntityNotFoundException(Template.class));
+    }
+    
+    public Template getTemplateForUser(Study study, CriteriaContext context, TemplateType type) {
         checkNotNull(context);
         checkNotNull(type);
 
@@ -228,7 +248,6 @@ public class TemplateService {
             return templateMatches.get(0);
         }
         // If not, fall back to the default specified for this study, if it exists. 
-        Study study = studyService.getStudy(context.getStudyIdentifier());
         String defaultGuid = study.getDefaultTemplates().get(type.name().toLowerCase());
         if (defaultGuid != null) {
             // Specified default may not exist, log as integrity violation, but continue
@@ -251,8 +270,8 @@ public class TemplateService {
             LOG.warn("Template matching failed with no default, returning first template found without matching");
             return results.getItems().get(0);
         }
-        // There is nothing to return
-        throw new EntityNotFoundException(Template.class);
+        return null;
+        // throw new EntityNotFoundException(Template.class);
     }
     
     public PagedResourceList<? extends Template> getTemplatesForType(StudyIdentifier studyId, TemplateType type,
@@ -293,7 +312,9 @@ public class TemplateService {
         return template;
     }
 
-    public GuidVersionHolder createTemplate(StudyIdentifier studyId, Template template) {
+    // While creating a study, we must be careful to call back to studyService.getStudy(), as this causes
+    // infinite recursion while migration code is in place.
+    public GuidVersionHolder createTemplate(Study study, Template template) {
         TemplateRevision revision = TemplateRevision.create();
         if (template.getTemplateType() != null) {
             Triple<String,String,MimeType> triple = defaultTemplatesMap.get(template.getTemplateType());
@@ -301,20 +322,18 @@ public class TemplateService {
             revision.setDocumentContent(triple.getMiddle());
             revision.setMimeType(triple.getRight());
         }
-        Study study = studyService.getStudy(studyId);
-        return migrateTemplate(study, template, revision);
-    }
-    
-    public GuidVersionHolder migrateTemplate(Study study, Template template, TemplateRevision revision) {
-        checkNotNull(study);
-        checkNotNull(template);
-        checkNotNull(revision);
-        
         Set<String> substudyIds = substudyService.getSubstudyIds(study.getStudyIdentifier());
         
         TemplateValidator validator = new TemplateValidator(study.getDataGroups(), substudyIds);
         Validate.entityThrowingException(validator, template);
-
+        
+        return migrateTemplate(study.getStudyIdentifier(), template, revision);
+    }
+    
+    public GuidVersionHolder migrateTemplate(StudyIdentifier studyId, Template template, TemplateRevision revision) {
+        checkNotNull(template);
+        checkNotNull(revision);
+        
         String templateGuid = generateGuid();
         DateTime timestamp = getTimestamp();
         String storagePath = templateGuid + "." + timestamp.getMillis();
@@ -325,7 +344,7 @@ public class TemplateService {
         revision.setCreatedBy(getUserId());
         revision.setStoragePath(storagePath);
         
-        template.setStudyId(study.getIdentifier());
+        template.setStudyId(studyId.getIdentifier());
         template.setDeleted(false);
         template.setVersion(0);
         template.setGuid(templateGuid);
@@ -367,7 +386,7 @@ public class TemplateService {
         TemplateValidator validator = new TemplateValidator(study.getDataGroups(), substudyIds);
         Validate.entityThrowingException(validator, template);
 
-        if (template.isDeleted() && isDefaultTemplate(template, studyId)) {
+        if (template.isDeleted() && isDefaultTemplate(studyId, template)) {
             throw new ConstraintViolationException.Builder().withMessage("The default template for a type cannot be deleted.")
                 .withEntityKey("guid", template.getGuid()).build();
         }
@@ -384,7 +403,7 @@ public class TemplateService {
         if (existing.isDeleted()) {
             throw new EntityNotFoundException(Template.class);
         }
-        if (isDefaultTemplate(existing, studyId)) {
+        if (isDefaultTemplate(studyId, existing)) {
             throw new ConstraintViolationException.Builder().withMessage("The default template for a type cannot be deleted.")
                 .withEntityKey("guid", guid).build();
         }
@@ -399,16 +418,11 @@ public class TemplateService {
         // Throws exception if template doesn't exist
         Template template = getTemplate(studyId, guid);
         
-        // You cannot delete the default template (logical or physical).
-        if (isDefaultTemplate(template, studyId)) {
-            throw new ConstraintViolationException.Builder().withMessage("The default template for a type cannot be deleted.")
-                .withEntityKey("guid", guid).build();
-        }
         templateDao.deleteTemplatePermanently(studyId, guid);
         criteriaDao.deleteCriteria(getKey(template));
     }
 
-    private boolean isDefaultTemplate(Template template, StudyIdentifier studyId) {
+    private boolean isDefaultTemplate(StudyIdentifier studyId, Template template) {
         Study study = studyService.getStudy(studyId);
         String defaultGuid = study.getDefaultTemplates().get(template.getTemplateType().name().toLowerCase());
         

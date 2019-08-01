@@ -37,7 +37,9 @@ import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.StatusMessage;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.accounts.UserSession;
+import org.sagebionetworks.bridge.models.studies.Study;
 import org.sagebionetworks.bridge.models.templates.Template;
+import org.sagebionetworks.bridge.services.StudyService;
 import org.sagebionetworks.bridge.services.TemplateService;
 
 public class TemplateControllerTest extends Mockito {
@@ -46,6 +48,9 @@ public class TemplateControllerTest extends Mockito {
 
     @Mock
     TemplateService mockTemplateService;
+    
+    @Mock
+    StudyService mockStudyService;
     
     @Mock
     HttpServletRequest mockRequest;
@@ -122,14 +127,17 @@ public class TemplateControllerTest extends Mockito {
         template.setName("This is a name");
         mockRequestBody(mockRequest, template);
         
+        Study study = Study.create();
+        when(mockStudyService.getStudy(TEST_STUDY)).thenReturn(study);
+        
         GuidVersionHolder holder = new GuidVersionHolder(GUID, 1L);
-        when(mockTemplateService.createTemplate(eq(TEST_STUDY), any())).thenReturn(holder);
+        when(mockTemplateService.createTemplate(eq(study), any())).thenReturn(holder);
         
         GuidVersionHolder result = controller.createTemplate();
         assertEquals(result.getGuid(), GUID);
         assertEquals(result.getVersion(), new Long(1));
         
-        verify(mockTemplateService).createTemplate(eq(TEST_STUDY), templateCaptor.capture());
+        verify(mockTemplateService).createTemplate(eq(study), templateCaptor.capture());
         assertEquals(templateCaptor.getValue().getName(), "This is a name");
     }
     

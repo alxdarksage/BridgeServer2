@@ -1,5 +1,6 @@
 package org.sagebionetworks.bridge.spring.controllers;
 
+import static org.sagebionetworks.bridge.Roles.WORKER;
 import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY;
 import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY_IDENTIFIER;
 import static org.sagebionetworks.bridge.TestConstants.USER_SUBSTUDY_IDS;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -97,6 +99,9 @@ public class ParticipantReportControllerTest extends Mockito {
     @Mock
     HttpServletRequest mockRequest;
     
+    @Mock
+    HttpServletResponse mockResponse;
+    
     @Captor
     ArgumentCaptor<ReportData> reportDataCaptor;
     
@@ -139,7 +144,7 @@ public class ParticipantReportControllerTest extends Mockito {
         doReturn(HEALTH_CODE).when(mockAccount).getHealthCode();
         doReturn(session).when(controller).getSessionIfItExists();
         doReturn(session).when(controller).getAuthenticatedSession();
-        doReturn(session).when(controller).getAuthenticatedSession(Roles.WORKER);
+        doReturn(session).when(controller).getAuthenticatedSession(WORKER);
         
         ReportIndex index = ReportIndex.create();
         index.setIdentifier("fofo");
@@ -153,6 +158,7 @@ public class ParticipantReportControllerTest extends Mockito {
         doReturn(list).when(mockReportService).getReportIndices(TEST_STUDY, ReportType.PARTICIPANT);
         
         doReturn(mockRequest).when(controller).request();
+        doReturn(mockResponse).when(controller).response();
     }
     
     @Test

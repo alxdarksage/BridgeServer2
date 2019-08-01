@@ -4,6 +4,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.sagebionetworks.bridge.BridgeUtils.typeNameToLabel;
+import static org.sagebionetworks.bridge.models.studies.MimeType.HTML;
 import static org.sagebionetworks.bridge.models.studies.PasswordPolicy.DEFAULT_PASSWORD_POLICY;
 
 import java.io.IOException;
@@ -64,14 +66,17 @@ import org.sagebionetworks.bridge.exceptions.EntityAlreadyExistsException;
 import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
 import org.sagebionetworks.bridge.exceptions.UnauthorizedException;
 import org.sagebionetworks.bridge.json.BridgeObjectMapper;
+import org.sagebionetworks.bridge.models.GuidVersionHolder;
+import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.accounts.IdentifierHolder;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
-import org.sagebionetworks.bridge.models.studies.EmailTemplate;
-import org.sagebionetworks.bridge.models.studies.MimeType;
 import org.sagebionetworks.bridge.models.studies.PasswordPolicy;
 import org.sagebionetworks.bridge.models.studies.Study;
 import org.sagebionetworks.bridge.models.studies.StudyAndUsers;
 import org.sagebionetworks.bridge.models.studies.StudyIdentifier;
+import org.sagebionetworks.bridge.models.templates.Template;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
+import org.sagebionetworks.bridge.models.templates.TemplateType;
 import org.sagebionetworks.bridge.models.upload.UploadFieldDefinition;
 import org.sagebionetworks.bridge.models.upload.UploadValidationStrictness;
 import org.sagebionetworks.bridge.services.email.BasicEmailProvider;
@@ -119,6 +124,7 @@ public class StudyService {
     private ExternalIdService externalIdService;
     private SubstudyService substudyService;
     private TemplateMigrationService templateMigrationService;
+    private TemplateService templateService;
 
     // Not defaults, if you wish to change these, change in source. Not configurable per study
     private String studyEmailVerificationTemplate;
@@ -203,6 +209,10 @@ public class StudyService {
     final void setTemplateMigrationService(TemplateMigrationService templateMigrationService) {
         this.templateMigrationService = templateMigrationService;
     }
+    @Autowired
+    final void setTemplateService(TemplateService templateService) {
+        this.templateService = templateService;
+    }
     
     @Autowired
     @Qualifier("bridgePFSynapseClient")
@@ -223,10 +233,6 @@ public class StudyService {
             // studies, treat it as if it doesn't exist.
             if (!study.isActive() && !includeDeleted) {
                 throw new EntityNotFoundException(Study.class, "Study not found.");
-            }
-            // Because these templates do not exist in all studies, add the defaults where they are null
-            if (setDefaultsIfAbsent(study)) {
-                study = updateAndCacheStudy(study);
             }
         }
         return study;
@@ -336,8 +342,9 @@ public class StudyService {
         study.setVerifyChannelOnSignInEnabled(true);
         study.setEmailVerificationEnabled(true);
         study.getDataGroups().add(BridgeConstants.TEST_USER_GROUP);
-        setDefaultsIfAbsent(study);
-
+        if (study.getPasswordPolicy() == null) {
+            study.setPasswordPolicy(DEFAULT_PASSWORD_POLICY);
+        }        
         // If validation strictness isn't set on study creation, set it to a reasonable default.
         if (study.getUploadValidationStrictness() == null) {
             study.setUploadValidationStrictness(UploadValidationStrictness.REPORT);
@@ -350,20 +357,30 @@ public class StudyService {
         }
         
         subpopService.createDefaultSubpopulation(study);
-
+        
+        for (TemplateType type: TemplateType.values()) {
+            String typeName = type.name().toLowerCase();
+            if (study.getDefaultTemplates().get(typeName) == null) {
+                Template template = Template.create();
+                template.setName(typeNameToLabel(type));
+                template.setTemplateType(type);
+                GuidVersionHolder keys = templateService.createTemplate(study, template);
+                study.getDefaultTemplates().put(typeName, keys.getGuid());               
+            }
+        }
         // do not create certs for whitelisted studies (legacy studies)
         if (!studyWhitelist.contains(study.getIdentifier())) {
             uploadCertService.createCmsKeyPair(study.getStudyIdentifier());
         }
-
+        
         study = studyDao.createStudy(study);
+        cacheProvider.setStudy(study);
         
         emailVerificationService.verifyEmailAddress(study.getSupportEmail());
 
         if (study.getConsentNotificationEmail() != null) {
             sendVerifyEmail(study, StudyEmailType.CONSENT_NOTIFICATION);    
         }
-        cacheProvider.setStudy(study);
 
         return study;
     }
@@ -493,7 +510,10 @@ public class StudyService {
 
         // With the introduction of the session verification email, studies won't have all the templates
         // that are normally required. So set it if someone tries to update a study, to a default value.
-        setDefaultsIfAbsent(study);
+        templateMigrationService.migrateTemplates(study);
+        if (study.getPasswordPolicy() == null) {
+            study.setPasswordPolicy(DEFAULT_PASSWORD_POLICY);
+        }        
 
         Validate.entityThrowingException(validator, study);
 
@@ -598,8 +618,9 @@ public class StudyService {
         } else {
             // actual delete
             studyDao.deleteStudy(existing);
-
+            
             // delete study data
+            deleteAllTemplates(existing.getStudyIdentifier());
             compoundActivityDefinitionService.deleteAllCompoundActivityDefinitionsInStudy(
                     existing.getStudyIdentifier());
             subpopService.deleteAllSubpopulations(existing.getStudyIdentifier());
@@ -607,6 +628,19 @@ public class StudyService {
         }
 
         cacheProvider.removeStudy(identifier);
+    }
+    
+    private void deleteAllTemplates(StudyIdentifier studyId) {
+        for (TemplateType type : TemplateType.values()) {
+            PagedResourceList<? extends Template> page;
+            do {
+                page = templateService.getTemplatesForType(studyId, type, 0, 50, true);
+                System.out.println(page);
+                for (Template template : page.getItems()) {
+                    templateService.deleteTemplatePermanently(studyId, template.getGuid());    
+                }
+            } while(!page.getItems().isEmpty());
+        }
     }
     
     /**
@@ -633,43 +667,6 @@ public class StudyService {
         }
     }
     
-    /**
-     * When the password policy or templates are not included, they are set to some sensible defaults.  
-     * values. 
-     */
-    private boolean setDefaultsIfAbsent(Study study) {
-        if (study.getPasswordPolicy() == null) {
-            study.setPasswordPolicy(DEFAULT_PASSWORD_POLICY);
-        }
-        return templateMigrationService.migrateTemplates(study);
-        /* After we've migration is confirmed, the code will be something like:
-        for (TemplateType type: TemplateType.values()) {
-            String typeName = type.name().toLowerCase();
-            if (study.getDefaultTemplates().get(typeName) == null) {
-                Template template = Template.create();
-                template.setName(typeNameToLabel(type));
-                template.setTemplateType(type);
-                GuidVersionHolder keys = templateService.createTemplate(study.getStudyIdentifier(), template);
-                study.getDefaultTemplates().put(typeName, keys.getGuid());        
-            }
-        }
-        */
-    }
-    /*
-    String typeNameToLabel(TemplateType type) {
-        List<String> words = Arrays.asList(type.name().toLowerCase().split("_"));
-        List<String> capitalized = words.stream().map(StringUtils::capitalize).collect(toList());
-        if (capitalized.get(0).equals("Sms")) {
-            capitalized.remove(0);
-            capitalized.add("Default (SMS)");
-        }
-        if (capitalized.get(0).equals("Email")) {
-            capitalized.remove(0);
-            capitalized.add("Default (Email)");
-        }
-        return Joiner.on(" ").join(capitalized);
-    }*/
-
     /** Sends the email verification email for the given study's email. */
     public void sendVerifyEmail(StudyIdentifier studyId, StudyEmailType type) {
         Study study = getStudy(studyId);
@@ -706,10 +703,12 @@ public class StudyService {
         String studyId = BridgeUtils.encodeURIComponent(study.getIdentifier());
         String shortUrl = String.format(VERIFY_STUDY_EMAIL_URL, BASE_URL, studyId, token, type.toString().toLowerCase());
         
-        EmailTemplate template = new EmailTemplate(studyEmailVerificationTemplateSubject,
-                studyEmailVerificationTemplate, MimeType.HTML);
-
-        BasicEmailProvider provider = new BasicEmailProvider.Builder().withStudy(study).withEmailTemplate(template)
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject(studyEmailVerificationTemplateSubject);
+        revision.setDocumentContent(studyEmailVerificationTemplate);
+        revision.setMimeType(HTML);
+        
+        BasicEmailProvider provider = new BasicEmailProvider.Builder().withStudy(study).withTemplateRevision(revision)
                 .withOverrideSenderEmail(bridgeSupportEmailPlain).withRecipientEmail(email)
                 .withToken(STUDY_EMAIL_VERIFICATION_URL, shortUrl)
                 .withExpirationPeriod(STUDY_EMAIL_VERIFICATION_EXPIRATION_PERIOD, VERIFY_STUDY_EMAIL_EXPIRE_IN_SECONDS)

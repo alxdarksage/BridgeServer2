@@ -41,8 +41,9 @@ import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.healthdata.HealthDataSubmission;
 import org.sagebionetworks.bridge.models.sms.SmsMessage;
 import org.sagebionetworks.bridge.models.sms.SmsType;
-import org.sagebionetworks.bridge.models.studies.SmsTemplate;
+import org.sagebionetworks.bridge.models.studies.MimeType;
 import org.sagebionetworks.bridge.models.studies.Study;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 import org.sagebionetworks.bridge.models.upload.UploadFieldDefinition;
 import org.sagebionetworks.bridge.models.upload.UploadFieldType;
 import org.sagebionetworks.bridge.models.upload.UploadSchema;
@@ -73,6 +74,7 @@ public class SmsServiceTest {
     private AmazonSNSClient mockSnsClient;
     private Study study;
     private SmsService svc;
+    private TemplateRevision revision;
 
     @BeforeClass
     public static void mockNow() {
@@ -95,6 +97,10 @@ public class SmsServiceTest {
         study = Study.create();
         study.setIdentifier(TestConstants.TEST_STUDY_IDENTIFIER);
         study.setShortName(STUDY_SHORT_NAME);
+        
+        revision = TemplateRevision.create();
+        revision.setDocumentContent(MESSAGE_BODY);
+        revision.setMimeType(MimeType.TEXT);
 
         // Mock other DAOs and services.
         mockHealthDataService = mock(HealthDataService.class);
@@ -124,7 +130,7 @@ public class SmsServiceTest {
         // Set up test and execute.
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(MESSAGE_BODY))
+                .withTemplateRevision(revision)
                 .withTransactionType()
                 .withPhone(TestConstants.PHONE).build();
 
@@ -155,7 +161,7 @@ public class SmsServiceTest {
         // Set up test and execute.
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(MESSAGE_BODY))
+                .withTemplateRevision(revision)
                 .withPromotionType()
                 .withPhone(TestConstants.PHONE).build();
 
@@ -181,7 +187,7 @@ public class SmsServiceTest {
         // Set up test and execute.
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(MESSAGE_BODY))
+                .withTemplateRevision(revision)
                 .withPromotionType()
                 .withPhone(TestConstants.PHONE).build();
         svc.sendSmsMessage(null, provider);
@@ -202,7 +208,7 @@ public class SmsServiceTest {
         // Set up test and execute.
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(MESSAGE_BODY))
+                .withTemplateRevision(revision)
                 .withPromotionType()
                 .withPhone(TestConstants.PHONE).build();
         svc.sendSmsMessage(null, provider);
@@ -223,7 +229,7 @@ public class SmsServiceTest {
         // Set up test and execute.
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(MESSAGE_BODY))
+                .withTemplateRevision(revision)
                 .withPromotionType()
                 .withPhone(TestConstants.PHONE).build();
         svc.sendSmsMessage(HEALTH_CODE, provider);
@@ -245,7 +251,7 @@ public class SmsServiceTest {
         // Set up test and execute.
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(MESSAGE_BODY))
+                .withTemplateRevision(revision)
                 .withPromotionType()
                 .withPhone(TestConstants.PHONE).build();
         svc.sendSmsMessage(HEALTH_CODE, provider);
@@ -281,9 +287,11 @@ public class SmsServiceTest {
         for (int i=0; i < 5; i++) {
             message += message;
         }
+        revision.setDocumentContent(message);
+        
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
-                .withSmsTemplate(new SmsTemplate(message))
+                .withTemplateRevision(revision)
                 .withTransactionType()
                 .withPhone(TestConstants.PHONE).build();
 

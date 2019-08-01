@@ -83,7 +83,7 @@ public class TemplateMigrationServiceTest extends Mockito {
         study.setIdentifier(TEST_STUDY_IDENTIFIER);
         
         GuidVersionHolder keys = new GuidVersionHolder(TEMPLATE_GUID, 1L);
-        when(mockTemplateService.createTemplate(eq(TEST_STUDY), any())).thenReturn(keys);
+        when(mockTemplateService.createTemplate(eq(study), any())).thenReturn(keys);
         when(mockTemplateService.migrateTemplate(eq(study), any(), any())).thenReturn(keys);
         
         CreatedOnHolder revKeys = new CreatedOnHolder(CREATED_ON);
@@ -202,10 +202,13 @@ public class TemplateMigrationServiceTest extends Mockito {
         
         Study study = createNewStudy();
         
+        GuidVersionHolder keys = new GuidVersionHolder("guid", 1L);
+        when(mockTemplateService.createTemplate(any(), any())).thenReturn(keys);
+        
         boolean result = service.migrateTemplates(study);
         assertTrue(result);
         
-        verify(mockTemplateService, times(12)).createTemplate(eq(TEST_STUDY), templateCaptor.capture());
+        verify(mockTemplateService, times(12)).createTemplate(eq(study), templateCaptor.capture());
         for (TemplateRevision revision : revisionCaptor.getAllValues()) {
             assertTrue(revision.getDocumentContent().contains("from service"));
         }
@@ -307,7 +310,7 @@ public class TemplateMigrationServiceTest extends Mockito {
         study.setIdentifier(TEST_STUDY_IDENTIFIER);
         study.setVerifyPhoneSmsTemplate(new SmsTemplate("One message"));
         
-        service.migrateExistingTemplate(map, study, SMS_VERIFY_PHONE);
+        service.migrateExistingTemplate(study, map, SMS_VERIFY_PHONE);
         assertEquals(map.get(SMS_VERIFY_PHONE.name().toLowerCase()), TEMPLATE_GUID);
         
         verify(mockTemplateService).migrateTemplate(eq(study), templateCaptor.capture(), revisionCaptor.capture());
@@ -322,28 +325,19 @@ public class TemplateMigrationServiceTest extends Mockito {
     public void createNewTemplate() {
         Map<String, String> map = new HashMap<>();
         
-        service.createNewTemplate(map, TEST_STUDY, SMS_VERIFY_PHONE);
+        service.createNewTemplate(study, map, SMS_VERIFY_PHONE);
         assertEquals(map.get(SMS_VERIFY_PHONE.name().toLowerCase()), TEMPLATE_GUID);
         
-        verify(mockTemplateService).createTemplate(eq(TEST_STUDY), templateCaptor.capture());
+        verify(mockTemplateService).createTemplate(eq(study), templateCaptor.capture());
         assertEquals(templateCaptor.getValue().getName(), "Verify Phone Default (SMS)");
         assertEquals(templateCaptor.getValue().getTemplateType(), SMS_VERIFY_PHONE);
-    }
-    
-    @Test
-    public void typeNameToLabel() {
-        String label = service.typeNameToLabel(SMS_APP_INSTALL_LINK);
-        assertEquals(label, "App Install Link Default (SMS)");
-        
-        label = service.typeNameToLabel(EMAIL_SIGNED_CONSENT);
-        assertEquals(label, "Signed Consent Default (Email)");
     }
     
     @Test
     public void emailTemplateToRevision() {
         EmailTemplate template = new EmailTemplate("One subject", "One body", TEXT);
         
-        TemplateRevision revision = service.emailTemplateToRevision(template);
+        TemplateRevision revision = TemplateMigrationService.emailTemplateToRevision(template);
         assertEquals(revision.getSubject(), "One subject");
         assertEquals(revision.getDocumentContent(), "One body");
         assertEquals(revision.getMimeType(), TEXT);        
@@ -351,14 +345,14 @@ public class TemplateMigrationServiceTest extends Mockito {
     
     @Test
     public void emailTemplateToRevisionNoTemplate() {
-        assertNull(service.emailTemplateToRevision(null));
+        assertNull(TemplateMigrationService.emailTemplateToRevision(null));
     }
     
     @Test
     public void smsTemplateToRevision() { 
         SmsTemplate template = new SmsTemplate("Message");
         
-        TemplateRevision revision = service.smsTemplateToRevision(template);
+        TemplateRevision revision = TemplateMigrationService.smsTemplateToRevision(template);
         assertNull(revision.getSubject());
         assertEquals(revision.getDocumentContent(), "Message");
         assertEquals(revision.getMimeType(), TEXT);
@@ -366,14 +360,14 @@ public class TemplateMigrationServiceTest extends Mockito {
     
     @Test
     public void smsTemplateToRevisionNoTemplate() { 
-        assertNull(service.smsTemplateToRevision(null));
+        assertNull(TemplateMigrationService.smsTemplateToRevision(null));
     }
     
     @Test
     public void getRevisionFromStudy() { 
         Study study = Study.create();
         study.setResetPasswordTemplate(new EmailTemplate("Subject", "Body", HTML));
-        TemplateRevision revision = service.getRevisionFromStudy(study, EMAIL_RESET_PASSWORD);
+        TemplateRevision revision = TemplateMigrationService.getRevisionFromStudy(study, EMAIL_RESET_PASSWORD);
         
         assertEquals(revision.getSubject(), "Subject");
         assertEquals(revision.getDocumentContent(), "Body");
@@ -384,88 +378,88 @@ public class TemplateMigrationServiceTest extends Mockito {
     public void getRevisionFromStudyEmailAccountExists() {
         Study study = Study.create();
         study.setAccountExistsTemplate(EMAIL_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, EMAIL_ACCOUNT_EXISTS));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, EMAIL_ACCOUNT_EXISTS));
     }
     
     @Test
     public void getRevisionFromStudyEmailAppInstallLink() {
         Study study = Study.create();
         study.setAppInstallLinkTemplate(EMAIL_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, EMAIL_APP_INSTALL_LINK));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, EMAIL_APP_INSTALL_LINK));
     }
 
     @Test
     public void getRevisionFromStudyEmailResetPassword() {
         Study study = Study.create();
         study.setResetPasswordTemplate(EMAIL_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, EMAIL_RESET_PASSWORD));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, EMAIL_RESET_PASSWORD));
     }
     
     @Test
     public void getRevisionFromStudyEmailSignIn() {
         Study study = Study.create();
         study.setEmailSignInTemplate(EMAIL_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, EMAIL_SIGN_IN));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, EMAIL_SIGN_IN));
     }
 
     @Test
     public void getRevisionFromStudyEmailSignedConsent() {
         Study study = Study.create();
         study.setSignedConsentTemplate(EMAIL_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, EMAIL_SIGNED_CONSENT));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, EMAIL_SIGNED_CONSENT));
     }
 
     @Test
     public void getRevisionFromStudyEmailVerifyEmail() {
         Study study = Study.create();
         study.setVerifyEmailTemplate(EMAIL_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, EMAIL_VERIFY_EMAIL));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, EMAIL_VERIFY_EMAIL));
     }
     
     @Test
     public void getRevisionFromStudySmsAcountExists() {
         Study study = Study.create();
         study.setAccountExistsSmsTemplate(SMS_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, SMS_ACCOUNT_EXISTS));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, SMS_ACCOUNT_EXISTS));
     }
 
     @Test
     public void getRevisionFromStudySmsAppInstallLink() {
         Study study = Study.create();
         study.setAppInstallLinkSmsTemplate(SMS_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, SMS_APP_INSTALL_LINK));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, SMS_APP_INSTALL_LINK));
     }
     
     @Test
     public void getRevisionFromStudySmsPhoneSignIn() {
         Study study = Study.create();
         study.setPhoneSignInSmsTemplate(SMS_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, SMS_PHONE_SIGN_IN));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, SMS_PHONE_SIGN_IN));
     }
     
     @Test
     public void getRevisionFromStudySmsResetPassword() {
         Study study = Study.create();
         study.setResetPasswordSmsTemplate(SMS_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, SMS_RESET_PASSWORD));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, SMS_RESET_PASSWORD));
     }
     
     @Test
     public void getRevisionFromStudySmsSignedConsent() {
         Study study = Study.create();
         study.setSignedConsentSmsTemplate(SMS_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, SMS_SIGNED_CONSENT));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, SMS_SIGNED_CONSENT));
     }
     
     @Test
     public void getRevisionFromStudySmsVerifyPhone() {
         Study study = Study.create();
         study.setVerifyPhoneSmsTemplate(SMS_TEMPLATE);
-        assertNotNull(service.getRevisionFromStudy(study, SMS_VERIFY_PHONE));
+        assertNotNull(TemplateMigrationService.getRevisionFromStudy(study, SMS_VERIFY_PHONE));
     }
     
     @Test
     public void getRevisionFromStudyTemplateMissing() {
-        assertNull(service.getRevisionFromStudy(Study.create(), EMAIL_RESET_PASSWORD));
+        assertNull(TemplateMigrationService.getRevisionFromStudy(Study.create(), EMAIL_RESET_PASSWORD));
     }
 }

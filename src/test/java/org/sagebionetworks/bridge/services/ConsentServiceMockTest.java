@@ -1,12 +1,14 @@
 package org.sagebionetworks.bridge.services;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_SIGNED_CONSENT;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.SMS_SIGNED_CONSENT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -52,12 +54,14 @@ import org.sagebionetworks.bridge.models.accounts.ConsentStatus;
 import org.sagebionetworks.bridge.models.accounts.SharingScope;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.accounts.Withdrawal;
+import org.sagebionetworks.bridge.models.studies.MimeType;
 import org.sagebionetworks.bridge.models.studies.Study;
 import org.sagebionetworks.bridge.models.subpopulations.ConsentSignature;
 import org.sagebionetworks.bridge.models.subpopulations.StudyConsentView;
 import org.sagebionetworks.bridge.models.subpopulations.Subpopulation;
 import org.sagebionetworks.bridge.models.subpopulations.SubpopulationGuid;
 import org.sagebionetworks.bridge.models.substudies.AccountSubstudy;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 import org.sagebionetworks.bridge.s3.S3Helper;
 import org.sagebionetworks.bridge.services.email.BasicEmailProvider;
 import org.sagebionetworks.bridge.services.email.EmailType;
@@ -123,6 +127,8 @@ public class ConsentServiceMockTest {
     @Mock
     private UrlShortenerService urlShortenerService;
     @Mock
+    private TemplateService templateService;
+    @Mock
     private Subpopulation subpopulation;
     @Mock
     private StudyConsentView studyConsentView;
@@ -152,7 +158,15 @@ public class ConsentServiceMockTest {
         consentService.setUrlShortenerService(urlShortenerService);
         consentService.setNotificationsService(notificationsService);
         consentService.setConsentTemplate(new ByteArrayResource((documentString).getBytes()));
-
+        consentService.setTemplateService(templateService);
+        
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject("signedConsent subject");
+        revision.setDocumentContent("signedConsent ${consentUrl}");
+        revision.setMimeType(MimeType.HTML);
+        when(templateService.getRevisionForUser(any(), eq(EMAIL_SIGNED_CONSENT))).thenReturn(revision);
+        when(templateService.getRevisionForUser(any(), eq(SMS_SIGNED_CONSENT))).thenReturn(revision);
+        
         study = TestUtils.getValidStudy(ConsentServiceMockTest.class);
 
         account = Account.create();
@@ -863,7 +877,7 @@ public class ConsentServiceMockTest {
         assertEquals(provider.getStudy(), study);
         assertEquals(provider.getSmsType(), "Transactional");
         assertEquals(provider.getTokenMap().get("consentUrl"), SHORT_URL);
-        assertEquals(provider.getTemplate(), study.getSignedConsentSmsTemplate());
+        assertEquals(provider.getTemplateRevision().getDocumentContent(), "signedConsent ${consentUrl}");
     }
 
     @Test
@@ -932,7 +946,7 @@ public class ConsentServiceMockTest {
         assertEquals(provider.getStudy(), study);
         assertEquals(provider.getSmsType(), "Transactional");
         assertEquals(provider.getTokenMap().get("consentUrl"), SHORT_URL);
-        assertEquals(provider.getTemplate(), study.getSignedConsentSmsTemplate());
+        assertEquals(provider.getTemplateRevision().getDocumentContent(), "signedConsent ${consentUrl}");
     }
 
     @Test

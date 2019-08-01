@@ -1,9 +1,12 @@
 package org.sagebionetworks.bridge;
 
+import java.util.List;
 import java.util.Set;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
+import org.sagebionetworks.bridge.models.ClientInfo;
 import org.sagebionetworks.bridge.models.Metrics;
 import org.sagebionetworks.bridge.models.studies.StudyIdentifier;
 import org.sagebionetworks.bridge.models.studies.StudyIdentifierImpl;
@@ -11,22 +14,27 @@ import org.sagebionetworks.bridge.models.studies.StudyIdentifierImpl;
 public class RequestContext {
     
     public static final RequestContext NULL_INSTANCE = new RequestContext(null, null, null, ImmutableSet.of(),
-            ImmutableSet.of(), null);
+            ImmutableSet.of(), null, null, ImmutableList.of());
 
     private final String requestId;
     private final StudyIdentifier callerStudyId;
     private final Set<String> callerSubstudies;
     private final Set<Roles> callerRoles;
     private final String callerUserId;
+    private final ClientInfo callerClientInfo;
+    private final List<String> callerLanguages;
     private final Metrics metrics;
     
-    private RequestContext(Metrics metrics, String requestId, String callerStudyId, Set<String> callerSubstudies, Set<Roles> callerRoles, String callerUserId) {
+    private RequestContext(Metrics metrics, String requestId, String callerStudyId, Set<String> callerSubstudies,
+            Set<Roles> callerRoles, String callerUserId, ClientInfo callerClientInfo, List<String> callerLanguages) {
         this.requestId = requestId;
         this.callerStudyId = (callerStudyId == null) ? null : new StudyIdentifierImpl(callerStudyId);
         this.callerSubstudies = callerSubstudies;
         this.callerRoles = callerRoles;
         this.metrics = metrics;
         this.callerUserId = callerUserId;
+        this.callerClientInfo = callerClientInfo;
+        this.callerLanguages = callerLanguages;
     }
     
     public Metrics getMetrics() {
@@ -50,6 +58,12 @@ public class RequestContext {
     public String getCallerUserId() { 
         return callerUserId;
     }
+    public ClientInfo getCallerClientInfo() {
+        return callerClientInfo;
+    }
+    public List<String> getCallerLanguages() {
+        return callerLanguages;
+    }
     
     public static class Builder {
         private Metrics metrics;
@@ -58,6 +72,8 @@ public class RequestContext {
         private Set<Roles> callerRoles;
         private String requestId;
         private String callerUserId;
+        private ClientInfo callerClientInfo;
+        private List<String> callerLanguages;
 
         public Builder withMetrics(Metrics metrics) {
             this.metrics = metrics;
@@ -83,7 +99,15 @@ public class RequestContext {
             this.callerUserId = callerUserId;
             return this;
         }
-        
+        public Builder withCallerClientInfo(ClientInfo clientInfo) {
+            this.callerClientInfo = clientInfo;
+            return this;
+        }
+        public Builder withCallerLanguages(List<String> callerLanguages) {
+            this.callerLanguages = callerLanguages;
+            return this;
+        }
+
         public RequestContext build() {
             if (requestId == null) {
                 requestId = BridgeUtils.generateGuid();
@@ -97,13 +121,16 @@ public class RequestContext {
             if (metrics == null) {
                 metrics = new Metrics(requestId);
             }
-            return new RequestContext(metrics, requestId, callerStudyId, callerSubstudies, callerRoles, callerUserId);
+            return new RequestContext(metrics, requestId, callerStudyId, callerSubstudies, callerRoles, callerUserId,
+                    callerClientInfo, callerLanguages);
         }
     }
 
     @Override
     public String toString() {
-        return "RequestContext [callerStudyId=" + callerStudyId + ", callerSubstudies=" + callerSubstudies
-                + ", callerRoles=" + callerRoles + ", callerUserId=" + callerUserId + ", requestId=" + requestId + "]";
+        return "RequestContext [requestId=" + requestId + ", callerStudyId=" + callerStudyId + ", callerSubstudies="
+                + callerSubstudies + ", callerRoles=" + callerRoles + ", callerUserId=" + callerUserId
+                + ", callerClientInfo=" + callerClientInfo + ", callerLanguages=" + callerLanguages + ", metrics="
+                + metrics + "]";
     }
 }

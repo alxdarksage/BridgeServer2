@@ -3,6 +3,14 @@ package org.sagebionetworks.bridge.services;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_ACCOUNT_EXISTS;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_RESET_PASSWORD;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_SIGN_IN;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.EMAIL_VERIFY_EMAIL;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.SMS_ACCOUNT_EXISTS;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.SMS_PHONE_SIGN_IN;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.SMS_RESET_PASSWORD;
+import static org.sagebionetworks.bridge.models.templates.TemplateType.SMS_VERIFY_PHONE;
 import static org.sagebionetworks.bridge.services.AuthenticationService.ChannelType.EMAIL;
 import static org.sagebionetworks.bridge.services.AuthenticationService.ChannelType.PHONE;
 import static org.sagebionetworks.bridge.validators.SignInValidator.EMAIL_SIGNIN_REQUEST;
@@ -37,9 +45,8 @@ import org.sagebionetworks.bridge.models.accounts.Verification;
 import org.sagebionetworks.bridge.models.accounts.PasswordReset;
 import org.sagebionetworks.bridge.models.accounts.Phone;
 import org.sagebionetworks.bridge.models.accounts.SignIn;
-import org.sagebionetworks.bridge.models.studies.EmailTemplate;
-import org.sagebionetworks.bridge.models.studies.SmsTemplate;
 import org.sagebionetworks.bridge.models.studies.Study;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 import org.sagebionetworks.bridge.redis.JedisOps;
 import org.sagebionetworks.bridge.redis.JedisTransaction;
 import org.sagebionetworks.bridge.services.AuthenticationService.ChannelType;
@@ -149,6 +156,7 @@ public class AccountWorkflowService {
     private SendMailService sendMailService;
     private AccountDao accountDao;
     private CacheProvider cacheProvider;
+    private TemplateService templateService;
 
     /** Bridge config, used to get config values such as throttle configuration. */
     @Autowired
@@ -188,6 +196,11 @@ public class AccountWorkflowService {
     final void setCacheProvider(CacheProvider cacheProvider) {
         this.cacheProvider = cacheProvider;
     }
+    
+    @Autowired
+    final void setTemplateService(TemplateService templateService) {
+        this.templateService = templateService;
+    }
 
     final AtomicLong getEmailSignInRequestInMillis() {
         return emailSignInRequestInMillis;
@@ -223,9 +236,10 @@ public class AccountWorkflowService {
         String oldUrl = getVerifyEmailURL(study, sptoken);
         String newUrl = getShortVerifyEmailURL(study, sptoken);
 
+        TemplateRevision revision = templateService.getRevisionForUser(study, EMAIL_VERIFY_EMAIL);
         BasicEmailProvider provider = new BasicEmailProvider.Builder()
                 .withStudy(study)
-                .withEmailTemplate(study.getVerifyEmailTemplate())
+                .withTemplateRevision(revision)
                 .withRecipientEmail(recipientEmail)
                 .withToken(SPTOKEN_KEY, sptoken)
                 .withToken(OLD_URL_KEY, oldUrl)
@@ -253,11 +267,11 @@ public class AccountWorkflowService {
         saveVerification(sptoken, new VerificationData(study.getIdentifier(), ChannelType.PHONE, userId));
         
         String formattedSpToken = sptoken.substring(0,3) + "-" + sptoken.substring(3,6);
-        
+        TemplateRevision revision = templateService.getRevisionForUser(study, SMS_VERIFY_PHONE);
         SmsMessageProvider provider = new SmsMessageProvider.Builder()
                 .withStudy(study)
                 .withToken("token", formattedSpToken)
-                .withSmsTemplate(study.getVerifyPhoneSmsTemplate())
+                .withTemplateRevision(revision)
                 .withTransactionType()
                 .withExpirationPeriod(PHONE_VERIFICATION_EXPIRATION_PERIOD, VERIFY_OR_RESET_EXPIRE_IN_SECONDS)
                 .withPhone(phone).build();
@@ -326,9 +340,11 @@ public class AccountWorkflowService {
         boolean sendPhone = !study.isAutoVerificationPhoneSuppressed();
         
         if (verifiedEmail && sendEmail) {
-            sendPasswordResetRelatedEmail(study, account.getEmail(), true, study.getAccountExistsTemplate());
+            TemplateRevision revision = templateService.getRevisionForUser(study, EMAIL_ACCOUNT_EXISTS);
+            sendPasswordResetRelatedEmail(study, account.getEmail(), true, revision);
         } else if (verifiedPhone && sendPhone) {
-            sendPasswordResetRelatedSMS(study, account, true, study.getAccountExistsSmsTemplate());
+            TemplateRevision revision = templateService.getRevisionForUser(study, SMS_ACCOUNT_EXISTS);
+            sendPasswordResetRelatedSMS(study, account, true, revision);
         }
     }
     
@@ -351,15 +367,17 @@ public class AccountWorkflowService {
             boolean emailVerified = isStudyAdmin || Boolean.TRUE.equals(account.getEmailVerified());
             boolean phoneVerified = isStudyAdmin || Boolean.TRUE.equals(account.getPhoneVerified());
             if (account.getEmail() != null && emailVerified) {
-                sendPasswordResetRelatedEmail(study, account.getEmail(), false, study.getResetPasswordTemplate());
+                TemplateRevision revision = templateService.getRevisionForUser(study, EMAIL_RESET_PASSWORD);
+                sendPasswordResetRelatedEmail(study, account.getEmail(), false, revision);
             } else if (account.getPhone() != null && phoneVerified) {
-                sendPasswordResetRelatedSMS(study, account, false, study.getResetPasswordSmsTemplate());
+                TemplateRevision revision = templateService.getRevisionForUser(study, SMS_RESET_PASSWORD);
+                sendPasswordResetRelatedSMS(study, account, false, revision);
             }
         }
     }
     
     private void sendPasswordResetRelatedEmail(Study study, String email, boolean includeEmailSignIn,
-            EmailTemplate template) {
+            TemplateRevision revision) {
         String sptoken = getNextToken();
         
         CacheKey cacheKey = CacheKey.passwordResetForEmail(sptoken, study.getIdentifier());
@@ -370,7 +388,7 @@ public class AccountWorkflowService {
         
         BasicEmailProvider.Builder builder = new BasicEmailProvider.Builder()
             .withStudy(study)
-            .withEmailTemplate(template)
+            .withTemplateRevision(revision)
             .withRecipientEmail(email)
             .withToken(SPTOKEN_KEY, sptoken)
             .withToken(OLD_URL_KEY, url)
@@ -400,7 +418,7 @@ public class AccountWorkflowService {
     }
     
     private void sendPasswordResetRelatedSMS(Study study, Account account, boolean includePhoneSignIn,
-            SmsTemplate template) {
+            TemplateRevision revision) {
         Phone phone = account.getPhone();
         String sptoken = getNextToken();
         
@@ -410,7 +428,7 @@ public class AccountWorkflowService {
         String url = getShortResetPasswordURL(study, sptoken);
 
         SmsMessageProvider.Builder builder = new SmsMessageProvider.Builder();
-        builder.withSmsTemplate(template);
+        builder.withTemplateRevision(revision);
         builder.withTransactionType();
         builder.withStudy(study);
         builder.withPhone(phone);
@@ -480,9 +498,10 @@ public class AccountWorkflowService {
             // eventually come from a template
             String formattedToken = token.substring(0,3) + "-" + token.substring(3,6); 
             
+            TemplateRevision revision = templateService.getRevisionForUser(study, SMS_PHONE_SIGN_IN);
             SmsMessageProvider provider = new SmsMessageProvider.Builder()
                     .withStudy(study)
-                    .withSmsTemplate(study.getPhoneSignInSmsTemplate())
+                    .withTemplateRevision(revision)
                     .withTransactionType()
                     .withPhone(signIn.getPhone())
                     .withExpirationPeriod(PHONE_SIGNIN_EXPIRATION_PERIOD, SIGNIN_EXPIRE_IN_SECONDS)
@@ -510,8 +529,9 @@ public class AccountWorkflowService {
             // need to provide host/email/studyId/token variables for earlier versions of the email sign in template 
             // that had the URL spelled out with substitutions. The email was encoded so it could be substituted 
             // into that template.
+            TemplateRevision revision = templateService.getRevisionForUser(study, EMAIL_SIGN_IN);
             BasicEmailProvider provider = new BasicEmailProvider.Builder()
-                .withEmailTemplate(study.getEmailSignInTemplate())
+                .withTemplateRevision(revision)
                 .withStudy(study)
                 .withRecipientEmail(signIn.getEmail())
                 .withToken(EMAIL_KEY, BridgeUtils.encodeURIComponent(signIn.getEmail()))

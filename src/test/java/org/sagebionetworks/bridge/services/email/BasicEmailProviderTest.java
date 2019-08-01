@@ -12,9 +12,9 @@ import javax.mail.internet.MimeBodyPart;
 import org.apache.commons.io.IOUtils;
 import org.testng.annotations.Test;
 
-import org.sagebionetworks.bridge.models.studies.EmailTemplate;
 import org.sagebionetworks.bridge.models.studies.MimeType;
 import org.sagebionetworks.bridge.models.studies.Study;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 
 import com.google.common.collect.Sets;
 
@@ -31,16 +31,18 @@ public class BasicEmailProviderTest {
         study.setTechnicalEmail("tech@email.com");
         study.setConsentNotificationEmail("consent@email.com,consent2@email.com");
 
-        EmailTemplate template = new EmailTemplate("Subject ${url}", 
-            "${studyName} ${studyShortName} ${studyId} ${sponsorName} ${supportEmail} "+
-            "${technicalEmail} ${consentEmail} ${url} ${expirationPeriod}", MimeType.HTML); 
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject("Subject ${url}");
+        revision.setDocumentContent("${studyName} ${studyShortName} ${studyId} ${sponsorName} ${supportEmail} "+
+                "${technicalEmail} ${consentEmail} ${url} ${expirationPeriod}");
+        revision.setMimeType(MimeType.HTML);
         
         // Create
         BasicEmailProvider provider = new BasicEmailProvider.Builder()
             .withStudy(study)
             .withRecipientEmail("recipient@recipient.com")
             .withRecipientEmail("recipient2@recipient.com")
-            .withEmailTemplate(template)
+            .withTemplateRevision(revision)
             .withExpirationPeriod("expirationPeriod", 60*60)
             .withToken("url", "some-url")
             .withType(EmailType.EMAIL_SIGN_IN)
@@ -71,10 +73,13 @@ public class BasicEmailProviderTest {
         study.setName("Study Name");
         study.setSupportEmail("email@email.com");
 
-        EmailTemplate template = new EmailTemplate("Subject ${url}", "Body ${url}", MimeType.HTML);
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject("Subject ${url}");
+        revision.setDocumentContent("Body ${url}");
+        revision.setMimeType(MimeType.HTML);
 
         // Create
-        BasicEmailProvider provider = new BasicEmailProvider.Builder().withEmailTemplate(template)
+        BasicEmailProvider provider = new BasicEmailProvider.Builder().withTemplateRevision(revision)
                 .withOverrideSenderEmail("example@example.com").withStudy(study).build();
 
         // Check provider attributes
@@ -83,9 +88,12 @@ public class BasicEmailProviderTest {
     
     @Test
     public void nullTokenMapEntryDoesntBreakMap() throws Exception {
-        EmailTemplate template = new EmailTemplate("asdf", "asdf", MimeType.TEXT);
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject("asdf");
+        revision.setDocumentContent("asdf");
+        revision.setMimeType(MimeType.TEXT);
         
-        BasicEmailProvider provider = new BasicEmailProvider.Builder().withEmailTemplate(template)
+        BasicEmailProvider provider = new BasicEmailProvider.Builder().withTemplateRevision(revision)
                 .withRecipientEmail("email@email.com")
                 .withOverrideSenderEmail("example@example.com").withStudy(Study.create()).build();
         
@@ -95,13 +103,16 @@ public class BasicEmailProviderTest {
     
     @Test
     public void canAddBinaryAttachment() throws Exception {
-        EmailTemplate template = new EmailTemplate("Subject ${url}", "Body ${url}", MimeType.HTML);
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setSubject("Subject ${url}");
+        revision.setDocumentContent("Body ${url}");
+        revision.setMimeType(MimeType.HTML);        
         
         BasicEmailProvider provider = new BasicEmailProvider.Builder()
                 .withBinaryAttachment("content.pdf", MimeType.PDF, "some data".getBytes())
                 .withRecipientEmail("email@email.com")
                 .withOverrideSenderEmail("example@example.com")
-                .withEmailTemplate(template)
+                .withTemplateRevision(revision)
                 .withStudy(Study.create()).build();
         
         MimeTypeEmail email = provider.getMimeTypeEmail();

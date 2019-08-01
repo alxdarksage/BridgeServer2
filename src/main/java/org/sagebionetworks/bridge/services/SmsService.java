@@ -217,7 +217,11 @@ public class SmsService {
         if (StringUtils.isBlank(number)) {
             throw new BadRequestException("number is required");
         }
-        return messageDao.getMostRecentMessage(number);
+        SmsMessage message = messageDao.getMostRecentMessage(number);
+        if (message == null) {
+            throw new EntityNotFoundException(SmsMessage.class);
+        }
+        return message;
     }
 
     /**

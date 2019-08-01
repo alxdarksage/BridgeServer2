@@ -261,7 +261,7 @@ public class ParticipantReportController extends BaseController {
         Study study = studyService.getStudy(session.getStudyIdentifier());
         
         Account account = accountDao.getAccount(AccountId.forId(study.getIdentifier(), userId));
-        
+
         reportService.deleteParticipantReportRecord(session.getStudyIdentifier(), identifier, date, account.getHealthCode());
         
         return new StatusMessage("Report record deleted.");

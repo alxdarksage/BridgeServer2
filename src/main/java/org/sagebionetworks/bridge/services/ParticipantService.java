@@ -6,6 +6,7 @@ import static java.lang.Boolean.TRUE;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.sagebionetworks.bridge.Roles.ADMINISTRATIVE_ROLES;
 import static org.sagebionetworks.bridge.Roles.CAN_BE_EDITED_BY;
+import static org.sagebionetworks.bridge.models.studies.MimeType.TEXT;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -72,6 +73,7 @@ import org.sagebionetworks.bridge.models.studies.StudyIdentifierImpl;
 import org.sagebionetworks.bridge.models.subpopulations.Subpopulation;
 import org.sagebionetworks.bridge.models.subpopulations.SubpopulationGuid;
 import org.sagebionetworks.bridge.models.substudies.AccountSubstudy;
+import org.sagebionetworks.bridge.models.templates.TemplateRevision;
 import org.sagebionetworks.bridge.models.upload.UploadView;
 import org.sagebionetworks.bridge.services.AuthenticationService.ChannelType;
 import org.sagebionetworks.bridge.sms.SmsMessageProvider;
@@ -767,9 +769,13 @@ public class ParticipantService {
         }
         Map<String,String> variables = BridgeUtils.studyTemplateVariables(study);
         
+        TemplateRevision revision = TemplateRevision.create();
+        revision.setDocumentContent(template.getMessage());
+        revision.setMimeType(TEXT);
+
         SmsMessageProvider.Builder builder = new SmsMessageProvider.Builder()
                 .withPhone(account.getPhone())
-                .withSmsTemplate(template)
+                .withTemplateRevision(revision)
                 .withPromotionType()
                 .withStudy(study);
         for (Map.Entry<String, String> entry : variables.entrySet()) {

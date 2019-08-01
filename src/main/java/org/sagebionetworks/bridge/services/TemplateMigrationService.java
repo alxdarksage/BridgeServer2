@@ -1,24 +1,21 @@
 package org.sagebionetworks.bridge.services;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.stream.Collectors.toList;
 import static org.sagebionetworks.bridge.models.studies.MimeType.TEXT;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
 
-import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import org.sagebionetworks.bridge.BridgeUtils;
 import org.sagebionetworks.bridge.models.GuidVersionHolder;
 import org.sagebionetworks.bridge.models.studies.EmailTemplate;
 import org.sagebionetworks.bridge.models.studies.SmsTemplate;
@@ -58,6 +55,7 @@ public class TemplateMigrationService {
         Map<String,String> studyDefaults = study.getDefaultTemplates();
         // Shortcut studies that have been entirely  migrated.
         if (TemplateType.values().length == studyDefaults.size()) {
+            LOG.debug("Study " + study.getIdentifier() + " templates have been migrated");
             return false;
         }
         
@@ -86,11 +84,11 @@ public class TemplateMigrationService {
             }
             // #3 Migrate any study object template, since this is no persisted template that would take precedence (migration case)
             if (defaultTemplates.get(typeName) == null) {
-                migrateExistingTemplate(defaultTemplates, study, type);
+                migrateExistingTemplate(study, defaultTemplates, type);
             }
             // #4 If still missing, create a template from the services's defaults (new study case)
             if (defaultTemplates.get(typeName) == null) {
-                createNewTemplate(defaultTemplates, studyId, type);
+                createNewTemplate(study, defaultTemplates, type);
             }
         }
         
@@ -127,40 +125,26 @@ public class TemplateMigrationService {
         return false;
     }
     
-    void migrateExistingTemplate(Map<String, String> defaultTemplates, Study study, TemplateType type) {
+    void migrateExistingTemplate(Study study, Map<String, String> defaultTemplates, TemplateType type) {
         TemplateRevision revision = getRevisionFromStudy(study, type);
         if (revision != null) {
             Template template = Template.create();
-            template.setName(typeNameToLabel(type));
+            template.setName(BridgeUtils.typeNameToLabel(type));
             template.setTemplateType(type);
             GuidVersionHolder keys = templateService.migrateTemplate(study, template, revision);
             defaultTemplates.put(type.name().toLowerCase(), keys.getGuid());        
         }
     }
     
-    void createNewTemplate(Map<String, String> defaultTemplates, StudyIdentifier studyId, TemplateType type) {
+    void createNewTemplate(Study study, Map<String, String> defaultTemplates, TemplateType type) {
         Template template = Template.create();
-        template.setName(typeNameToLabel(type));
+        template.setName(BridgeUtils.typeNameToLabel(type));
         template.setTemplateType(type);
-        GuidVersionHolder keys = templateService.createTemplate(studyId, template);
+        GuidVersionHolder keys = templateService.createTemplate(study, template);
         defaultTemplates.put(type.name().toLowerCase(), keys.getGuid());        
     }
     
-    String typeNameToLabel(TemplateType type) {
-        List<String> words = Arrays.asList(type.name().toLowerCase().split("_"));
-        List<String> capitalized = words.stream().map(StringUtils::capitalize).collect(toList());
-        if (capitalized.get(0).equals("Sms")) {
-            capitalized.remove(0);
-            capitalized.add("Default (SMS)");
-        }
-        if (capitalized.get(0).equals("Email")) {
-            capitalized.remove(0);
-            capitalized.add("Default (Email)");
-        }
-        return Joiner.on(" ").join(capitalized);
-    }
-    
-    TemplateRevision getRevisionFromStudy(Study study, TemplateType type) {
+    public static TemplateRevision getRevisionFromStudy(Study study, TemplateType type) {
         checkNotNull(study);
         checkNotNull(type);
         switch(type) {
@@ -192,7 +176,7 @@ public class TemplateMigrationService {
         return null;
     }
     
-    TemplateRevision emailTemplateToRevision(EmailTemplate template) {
+    static TemplateRevision emailTemplateToRevision(EmailTemplate template) {
         if (template == null) {
             return null;
         }
@@ -203,7 +187,7 @@ public class TemplateMigrationService {
         return revision;
     }
     
-    TemplateRevision smsTemplateToRevision(SmsTemplate template) {
+    static TemplateRevision smsTemplateToRevision(SmsTemplate template) {
         if (template == null) {
             return null;
         }
