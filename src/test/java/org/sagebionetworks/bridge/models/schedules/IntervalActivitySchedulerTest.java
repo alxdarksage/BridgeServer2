@@ -725,6 +725,10 @@ public class IntervalActivitySchedulerTest {
         assertTrue(scheduledActivities.isEmpty());
     }
 
+    // In these next two tasks, the different times of day should not alter the fact that there 
+    // are 4 tasks that are returned. However they do, and this will be fixed in a later 
+    // reworking of the scheduler.
+
     @Test
     public void eventIsEarlyUTC() {
         DateTime enrollment = DateTime.parse("2015-04-04T04:00:00.000Z");

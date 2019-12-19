@@ -213,9 +213,8 @@ public final class ScheduleContext {
         }
         
         public ScheduleContext build() {
-            // Pretty much everything else is optional. I would like healthCode to be required, but it's not:
-            // we use these selection criteria to select subpopulations on sign up. However, this can change
-            // the time zone of the timestamp based solely on whether it is provided or not
+            // pretty much everything else is optional. I would like healthCode to be required, but it's not:
+            // we use these selection criteria to select subpopulations on sign up.
             if (startsOn == null) {
                 startsOn = (initialTimeZone == null) ? DateTime.now() : DateTime.now(initialTimeZone);
             }
