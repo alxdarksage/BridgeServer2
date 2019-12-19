@@ -25,8 +25,9 @@ public abstract class ActivityScheduler {
 
     /**
      * Given the schedule context and the schedule, return a list of start/end time windows in which we should
-     * schedule events. In each window, start time the time we should start scheduling after. End time is the time we
-     * should stop scheduling the event. If end time is not specified, we schedule the event indefinitely.
+     * schedule events (these should be in the time zone of the request). In each window, start time is the time 
+     * we should start scheduling after. End time is the time we should stop scheduling the event. If end time 
+     * is not specified, we schedule the event indefinitely.
      */
     protected List<RangeTuple<DateTime>> getScheduleWindowsBasedOnEvents(ScheduleContext context) {
         if (!context.hasEvents()) {
@@ -50,14 +51,14 @@ public abstract class ActivityScheduler {
             // Start time is event time, with added delay if it's present.
             DateTime startTime = oneEventTime;
             if (schedule.getDelay() != null) {
-                startTime = oneEventTime.plus(schedule.getDelay());
+                startTime = oneEventTime.plus(schedule.getDelay()).withZone(context.getRequestTimeZone());
             }
 
             // End time is only present if a sequence period is specified.
             // Sequence period is measured from the first timestamp plus the delay, to the end of the period.
             DateTime endTime = null;
             if (schedule.getSequencePeriod() != null) {
-                endTime = startTime.plus(schedule.getSequencePeriod());
+                endTime = startTime.plus(schedule.getSequencePeriod()).withZone(context.getRequestTimeZone());
             }
 
             // Construct the range tuple.
@@ -75,7 +76,7 @@ public abstract class ActivityScheduler {
         } else {
             for (LocalTime localTime : schedule.getTimes()) {
                 DateTime withLocalTime = dateTime.toLocalDate().toDateTime(localTime)
-                        .withZoneRetainFields(context.getStartsOn().getZone());
+                        .withZone(context.getRequestTimeZone());
                 addScheduledActivityAtTime(scheduledActivities, plan, context, withLocalTime);
             }
         }
@@ -160,7 +161,7 @@ public abstract class ActivityScheduler {
             Iterable<String> eventIds = Schedule.EVENT_ID_SPLITTER.split(eventIdsString.trim());
             for (String thisEventId : eventIds) {
                 if (context.getEvent(thisEventId) != null) {
-                    eventDateTimeList.add(context.getEvent(thisEventId));
+                    eventDateTimeList.add(context.getEvent(thisEventId).withZone(context.getRequestTimeZone()));
 
                     if (!getAll) {
                         // We only wanted one event, and we found it, so break.

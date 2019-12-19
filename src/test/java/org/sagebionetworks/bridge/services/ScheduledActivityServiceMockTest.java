@@ -1316,9 +1316,9 @@ public class ScheduledActivityServiceMockTest {
         reset(schedulePlanService);
         reset(activityEventService);
         
-        DateTime enrollment = DateTime.parse("2017-02-20T01:00:00.000Z");
         DateTimeZone initialTimeZone = DateTimeZone.forOffsetHours(initialTZOffset);
         DateTimeZone requestTimeZone = DateTimeZone.forOffsetHours(requestTZOffset);
+        DateTime enrollment = DateTime.parse("2017-02-20T01:00:00.000Z").withZone(initialTimeZone);
         DateTime startsOn = DateTime.parse("2017-04-06T17:10:10.000Z").withZone(requestTimeZone);
         
         Map<String,DateTime> eventMap = Maps.newHashMap();

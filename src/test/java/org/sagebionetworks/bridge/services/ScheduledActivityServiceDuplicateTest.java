@@ -284,7 +284,7 @@ public class ScheduledActivityServiceDuplicateTest {
     }
     
     @Test
-    public void settingEnrollmetToNextDayUTCWorks() throws Exception {
+    public void settingEnrollmentToNextDayUTCWorks() throws Exception {
         // Mock activityEventService
         ScheduleContext context = mockEventsAndContext(ENROLLMENT_AFTER_DAY_ROLLS, PST);
         

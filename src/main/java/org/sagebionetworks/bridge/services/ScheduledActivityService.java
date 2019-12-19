@@ -289,7 +289,7 @@ public class ScheduledActivityService {
         String healthCode = context.getCriteriaContext().getHealthCode();
         for (ScheduledActivity activity : scheduledActivities) {
             if (!dbMap.containsKey(activity.getGuid())) {
-                ScheduledActivity dbActivity = activityDao.getActivity(context.getStartsOn().getZone(), healthCode,
+                ScheduledActivity dbActivity = activityDao.getActivity(context.getRequestTimeZone(), healthCode,
                         activity.getGuid(), false);
                 if (dbActivity != null) {
                     dbMap.put(dbActivity.getGuid(), dbActivity);    

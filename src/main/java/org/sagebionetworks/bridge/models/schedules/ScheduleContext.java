@@ -52,6 +52,14 @@ public final class ScheduleContext {
     }
     
     /**
+     * A helper method to get the time zone of the request (which is based on the time zone submitted in the startsOn 
+     * and endsOn DateTime objects, which currently have to match).
+     */
+    public DateTimeZone getRequestTimeZone() {
+        return startsOn.getZone();
+    }
+    
+    /**
      * The current request is asking for activities up to a given end date.
      * @return
      */
@@ -205,8 +213,9 @@ public final class ScheduleContext {
         }
         
         public ScheduleContext build() {
-            // pretty much everything else is optional. I would like healthCode to be required, but it's not:
-            // we use these selection criteria to select subpopulations on sign up.
+            // Pretty much everything else is optional. I would like healthCode to be required, but it's not:
+            // we use these selection criteria to select subpopulations on sign up. However, this can change
+            // the time zone of the timestamp based solely on whether it is provided or not
             if (startsOn == null) {
                 startsOn = (initialTimeZone == null) ? DateTime.now() : DateTime.now(initialTimeZone);
             }

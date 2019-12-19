@@ -74,6 +74,8 @@ public class IntervalActivitySchedulerTest {
             .withEvents(events).build();
         scheduledActivities = schedule.getScheduler().getScheduledActivities(plan, context);
 
+        System.out.println(scheduledActivities.get(0).getScheduledOn() + " - " + scheduledActivities.get(0).getExpiresOn());
+        
         assertEquals(scheduledActivities.size(), 2);
         assertEquals(scheduledActivities.get(0).getScheduledOn().toString(), "2019-12-17T08:00:00.000+05:30");
         assertEquals(scheduledActivities.get(0).getExpiresOn().toString(), "2019-12-18T08:00:00.000+05:30");
@@ -746,7 +748,7 @@ public class IntervalActivitySchedulerTest {
 
         scheduledActivities = schedule.getScheduler().getScheduledActivities(plan, context);
         
-        assertEquals(scheduledActivities.size(), 4);
+        assertEquals(scheduledActivities.size(), 5);
     }
     
     @Test
