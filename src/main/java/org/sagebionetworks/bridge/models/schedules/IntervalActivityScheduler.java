@@ -25,14 +25,14 @@ class IntervalActivityScheduler extends ActivityScheduler {
         List<RangeTuple<DateTime>> scheduleWindowList = getScheduleWindowsBasedOnEvents(context);
 
         for (RangeTuple<DateTime> oneScheduleWindow : scheduleWindowList) {
-            DateTime datetime = oneScheduleWindow.getStart();
-            while(shouldContinueScheduling(context, datetime, oneScheduleWindow, scheduledActivities)) {
-                addScheduledActivityForAllTimes(scheduledActivities, plan, context, datetime);
+            DateTime scheduledTime = oneScheduleWindow.getStart().withZone(context.getInitialTimeZone());
+            while(shouldContinueScheduling(context, scheduledTime, oneScheduleWindow, scheduledActivities)) {
+                addScheduledActivityForAllTimes(scheduledActivities, plan, context, scheduledTime);
                 // A one-time activity with no interval (for example); don't loop
                 if (schedule.getInterval() == null) {
                     return trimScheduledActivities(scheduledActivities);
                 }
-                datetime = datetime.plus(schedule.getInterval());
+                scheduledTime = scheduledTime.plus(schedule.getInterval());
             }
         }
         return trimScheduledActivities(scheduledActivities);

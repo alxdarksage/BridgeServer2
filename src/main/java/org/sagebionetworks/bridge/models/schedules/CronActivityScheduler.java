@@ -36,7 +36,7 @@ class CronActivityScheduler extends ActivityScheduler {
                 scheduledTime = new DateTime(next, DateTimeZone.UTC);
                 
                 if (shouldContinueScheduling(context, scheduledTime, oneScheduleWindow, scheduledActivities)) {
-                    addScheduledActivityAtTime(scheduledActivities, plan, context, scheduledTime.toLocalDate(), scheduledTime.toLocalTime());
+                    addScheduledActivityAtTime(scheduledActivities, plan, context, scheduledTime);
                 }
             }
         }

@@ -51,6 +51,36 @@ public class IntervalActivitySchedulerTest {
     public void after() {
         DateTimeUtils.setCurrentMillisSystem();
     }
+
+    @Test
+    public void indianRecurringScheduleBug() {
+        Schedule schedule = new Schedule();
+        schedule.setScheduleType(RECURRING);
+        schedule.setInterval("P1D");
+        schedule.setExpires("P1D");
+        schedule.addTimes("08:00");
+        schedule.addActivity(TestUtils.getActivity3());
+        
+        DateTime now = DateTime.parse("2019-12-18T23:52:33.462+05:30");
+        DateTimeUtils.setCurrentMillisFixed(now.getMillis());
+        
+        events.put("enrollment", DateTime.parse("2019-11-28T22:31:41.270-07:00"));
+        
+        ScheduleContext context = new ScheduleContext.Builder()
+            .withStudyIdentifier(TEST_STUDY)
+            .withInitialTimeZone(DateTimeZone.forOffsetHours(-7))
+            .withStartsOn(DateTime.parse("2019-12-18T00:00:00.000+05:30"))
+            .withEndsOn(DateTime.parse("2019-12-19T00:00:00.000+05:30"))
+            .withEvents(events).build();
+        scheduledActivities = schedule.getScheduler().getScheduledActivities(plan, context);
+
+        assertEquals(scheduledActivities.size(), 2);
+        assertEquals(scheduledActivities.get(0).getScheduledOn().toString(), "2019-12-17T08:00:00.000+05:30");
+        assertEquals(scheduledActivities.get(0).getExpiresOn().toString(), "2019-12-18T08:00:00.000+05:30");
+        assertEquals(scheduledActivities.get(1).getScheduledOn().toString(), "2019-12-18T08:00:00.000+05:30");
+        assertEquals(scheduledActivities.get(1).getExpiresOn().toString(), "2019-12-19T08:00:00.000+05:30");
+        DateTimeUtils.setCurrentMillisSystem();
+    }
     
     @Test
     public void canSpecifyASequence() {
@@ -693,10 +723,6 @@ public class IntervalActivitySchedulerTest {
         assertTrue(scheduledActivities.isEmpty());
     }
 
-    // In these next two tasks, the different times of day should not alter the fact that there 
-    // are 4 tasks that are returned. However they do, and this will be fixed in a later 
-    // reworking of the scheduler.
-    
     @Test
     public void eventIsEarlyUTC() {
         DateTime enrollment = DateTime.parse("2015-04-04T04:00:00.000Z");
@@ -720,7 +746,7 @@ public class IntervalActivitySchedulerTest {
 
         scheduledActivities = schedule.getScheduler().getScheduledActivities(plan, context);
         
-        assertEquals(scheduledActivities.size(), 5);
+        assertEquals(scheduledActivities.size(), 4);
     }
     
     @Test
