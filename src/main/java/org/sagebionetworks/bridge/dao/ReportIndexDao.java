@@ -37,6 +37,6 @@ public interface ReportIndexDao {
     /**
      * Get all the identifiers for a study, for either study or participant reports.
      */
-    ReportTypeResourceList<? extends ReportIndex> getIndices(String studyId, ReportType type);
+    ReportTypeResourceList<? extends ReportIndex> getIndices(String appId, ReportType type);
     
 }

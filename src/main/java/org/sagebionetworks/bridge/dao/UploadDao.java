@@ -18,15 +18,15 @@ public interface UploadDao {
      *
      * @param uploadRequest
      *         upload request from user
-     * @param studyId
-     *         the study of the user
+     * @param appId
+     *         the app of the user
      * @param healthCode
      *         user's health code
      * @param originalUploadId
      *         upload ID this upload is a duplicate of, or null if it's not a dupe
      * @return upload metadata of created upload
      */
-    Upload createUpload(@Nonnull UploadRequest uploadRequest, @Nonnull String studyId,
+    Upload createUpload(@Nonnull UploadRequest uploadRequest, @Nonnull String appId,
             @Nonnull String healthCode, @Nullable String originalUploadId);
 
     /**
@@ -47,7 +47,7 @@ public interface UploadDao {
     /**
      * Get the uploads for an entire study in the indicated time range.
      */
-    ForwardCursorPagedResourceList<Upload> getStudyUploads(@Nonnull String studyId,
+    ForwardCursorPagedResourceList<Upload> getStudyUploads(@Nonnull String appId,
             @Nonnull DateTime startTime, @Nonnull DateTime endTime, int pageSize, @Nullable String offsetKey);
 
     /**

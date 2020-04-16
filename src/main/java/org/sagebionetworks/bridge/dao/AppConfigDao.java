@@ -7,36 +7,36 @@ import org.sagebionetworks.bridge.models.appconfig.AppConfig;
 public interface AppConfigDao {
     
     /**
-     * Get all the app configuration objects for the study.
+     * Get all the configuration objects for the app.
      */
-    List<AppConfig> getAppConfigs(String studyId, boolean includeDeleted);
+    List<AppConfig> getAppConfigs(String appId, boolean includeDeleted);
     
     /**
-     * Get a specific app configuration object for this study.
+     * Get a specific configuration object for this app.
      */
-    AppConfig getAppConfig(String studyId, String guid);
+    AppConfig getAppConfig(String appId, String guid);
     
     /**
-     * Create an app configuration object. If the object already exists, 
+     * Create a configuration object. If the object already exists, 
      * a copy will be created.
      */
     AppConfig createAppConfig(AppConfig appConfig);
     
     /**
-     * Update an existing app config.
+     * Update an existing config.
      */
     AppConfig updateAppConfig(AppConfig appConfig);
     
     /**
-     * Delete an individual app config by marking it as deleted. The record 
+     * Delete an individual config by marking it as deleted. The record 
      * will not be returned from the APIs but it is still in the database.
      */
-    void deleteAppConfig(String studyId, String guid);
+    void deleteAppConfig(String appId, String guid);
     
     /**
-     * Permanently delete an individual app config. The record is deleted 
+     * Permanently delete an individual config. The record is deleted 
      * from the database. 
      */
-    void deleteAppConfigPermanently(String studyId, String guid);
+    void deleteAppConfigPermanently(String appId, String guid);
     
 }

@@ -8,9 +8,9 @@ import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
 
 /**
- * A DAO for managing external identifiers. For studies utilizing strict validation of external identifiers, they must be 
- * selected from a known list of identifiers, uploaded by study designers. An ID will not be assigned to two different users 
- * or re-assigned to another user if assigned.
+ * A DAO for managing external identifiers. For studies utilizing strict validation of external identifiers, they must
+ * be selected from a known list of identifiers, uploaded by study designers. An ID will not be assigned to two
+ * different users or re-assigned to another user if assigned.
  */
 public interface ExternalIdDao {
 
@@ -20,14 +20,14 @@ public interface ExternalIdDao {
      * Get a single external ID record. Returns null if there is no record or it doesn't match the caller's
      * substudy membership.
      */
-    Optional<ExternalIdentifier> getExternalId(String studyId, String externalId);
+    Optional<ExternalIdentifier> getExternalId(String appId, String externalId);
 
     /**
      * Get a forward-only cursor page of results. All external IDs for the study are returned, however, if a 
      * given substudy ID association is a substudy that the user is not associated to (if the caller is associated 
      * to any substudies), then the external ID will have a substudy of null. 
      */
-    ForwardCursorPagedResourceList<ExternalIdentifierInfo> getExternalIds(String studyId,
+    ForwardCursorPagedResourceList<ExternalIdentifierInfo> getExternalIds(String appId,
             String offsetKey, int pageSize, String idFilter, Boolean assignmentFilter);
     
     /**

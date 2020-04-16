@@ -18,5 +18,5 @@ public interface StudyDao {
     
     void deleteStudy(Study study);
 
-    void deactivateStudy(String studyId);
+    void deactivateStudy(String appId);
 }
