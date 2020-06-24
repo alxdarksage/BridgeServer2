@@ -10,6 +10,8 @@ import org.sagebionetworks.bridge.json.BridgeObjectMapper;
 
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -73,7 +75,9 @@ public class AccountSummarySearchTest {
             .withLanguage("en")
             .withStartTime(startTime)
             .withEndTime(endTime)
-            .withOrgMembership(TEST_ORG_ID).build();
+            .withExcludingMembers(true)
+            .withOrgMembership(TEST_ORG_ID)
+            .withAdmin(true).build();
         
         String json = BridgeObjectMapper.get().writeValueAsString(search);
         JsonNode node = BridgeObjectMapper.get().readTree(json);
@@ -92,7 +96,9 @@ public class AccountSummarySearchTest {
         assertEquals(deser.getLanguage(), "en");
         assertEquals(deser.getStartTime(), startTime);
         assertEquals(deser.getEndTime(), endTime);
+        assertTrue(deser.isExcludingMembers());
         assertEquals(deser.getOrgMembership(), TEST_ORG_ID);
+        assertTrue(deser.isAdmin());
     }
     
     @Test
@@ -110,7 +116,9 @@ public class AccountSummarySearchTest {
             .withLanguage("en")
             .withStartTime(startTime)
             .withEndTime(endTime)
-            .withOrgMembership(TEST_ORG_ID).build();
+            .withExcludingMembers(true)
+            .withOrgMembership(TEST_ORG_ID)
+            .withAdmin(false).build();
 
         AccountSummarySearch copy = new AccountSummarySearch.Builder().copyOf(search).build();
         assertEquals(copy.getOffsetBy(), 10);
@@ -123,6 +131,8 @@ public class AccountSummarySearchTest {
         assertEquals(copy.getStartTime(), startTime);
         assertEquals(copy.getEndTime(), endTime);
         assertEquals(copy.getOrgMembership(), TEST_ORG_ID);
+        assertTrue(copy.isExcludingMembers());
+        assertFalse(copy.isAdmin());
     }
     
     @Test

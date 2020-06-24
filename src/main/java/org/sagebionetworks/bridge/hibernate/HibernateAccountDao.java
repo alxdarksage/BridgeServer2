@@ -153,14 +153,13 @@ public class HibernateAccountDao implements AccountDao {
             if (search.getEndTime() != null) {
                 builder.append("AND acct.createdOn <= :endTime", "endTime", search.getEndTime());
             }
-            if (search.getOrgMembership() != null) {
-                builder.append("AND acct.orgMembership = :orgId", "orgId", search.getOrgMembership());
-            }
+            builder.organization(search.isExcludingMembers(), search.getOrgMembership());
             if (search.getLanguage() != null) {
                 builder.append("AND :language IN ELEMENTS(acct.languages)", "language", search.getLanguage());
             }
             builder.dataGroups(search.getAllOfGroups(), "IN");
             builder.dataGroups(search.getNoneOfGroups(), "NOT IN");
+            builder.admin(search.isAdmin());
         }
         Set<String> callerSubstudies = context.getCallerSubstudies();
         if (!callerSubstudies.isEmpty()) {
@@ -169,6 +168,7 @@ public class HibernateAccountDao implements AccountDao {
         if (!isCount) {
             builder.append("GROUP BY acct.id");        
         }
+        System.out.println(builder.getQuery());
         return builder;
     }
 

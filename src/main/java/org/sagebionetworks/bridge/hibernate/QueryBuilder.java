@@ -42,6 +42,33 @@ class QueryBuilder {
             phrases.add("AND (" + Joiner.on(" AND ").join(clauses) + ")");
         }
     }
+    /**
+     * If not called, nothing is added to the query and every account is shown,
+     * or else you can show only accounts with roles, or only accounts without
+     * roles. Accounts with roles are considered administrative accounts.
+     */
+    public void admin(Boolean isAdmin) {
+        if (isAdmin != null) {
+            if (isAdmin.booleanValue()) {
+                phrases.add("AND size(acct.roles) > 0");
+            } else {
+                phrases.add("AND size(acct.roles) = 0");
+            }
+        }
+    }
+    /** 
+     * We have three search states: find everyone (don't exclude organization members or require
+     * membership in a specific organization); find people who are unassigned; and find people
+     * who are assigned to a specific organization. excludeOrgMembers=true, admin=true finds a
+     * list of unassigned admins who can be assigned to an organization.
+     */
+    public void organization(boolean excludingMembers, String orgMembership) {
+        if (excludingMembers) {
+            phrases.add("AND acct.orgMembership IS NULL");
+        } else if (orgMembership != null) {
+            this.append("AND acct.orgMembership = :orgId", "orgId", orgMembership);
+        }        
+    }
     public String getQuery() {
         return BridgeUtils.SPACE_JOINER.join(phrases);
     }

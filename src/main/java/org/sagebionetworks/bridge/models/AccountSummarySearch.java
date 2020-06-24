@@ -27,10 +27,12 @@ public final class AccountSummarySearch implements BridgeEntity {
     private final DateTime startTime;
     private final DateTime endTime;
     private final String orgMembership;
+    private final boolean excludingMembers;
+    private final Boolean admin;
 
     private AccountSummarySearch(int offsetBy, int pageSize, String emailFilter, String phoneFilter,
             Set<String> allOfGroups, Set<String> noneOfGroups, String language, DateTime startTime, DateTime endTime,
-            String orgId) {
+            String orgId, boolean excludingMembers, Boolean admin) {
         this.offsetBy = offsetBy;
         this.pageSize = pageSize;
         this.emailFilter = emailFilter;
@@ -41,6 +43,8 @@ public final class AccountSummarySearch implements BridgeEntity {
         this.startTime = startTime;
         this.endTime = endTime;
         this.orgMembership = orgId;
+        this.excludingMembers = excludingMembers;
+        this.admin = admin;
     }
 
     public int getOffsetBy() {
@@ -75,7 +79,15 @@ public final class AccountSummarySearch implements BridgeEntity {
     public String getOrgMembership() {
         return orgMembership;
     }
+    
+    public boolean isExcludingMembers() { 
+        return excludingMembers;
+    }
 
+    public Boolean isAdmin() {
+        return admin;
+    }
+    
     @Override
     public int hashCode() {
         // When serialized, Joda DateTime objects can change their Chronology and become unequal, even when representing
@@ -83,7 +95,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         // versus ISOChronology[-07:00] if that's the offset at the time of serialization). Using the ISO String
         // representation of the DateTime gives us equality across serialization.
         return Objects.hash(allOfGroups, emailFilter, nullsafeDateString(endTime), language, noneOfGroups, offsetBy,
-                pageSize, phoneFilter, nullsafeDateString(startTime), orgMembership);
+                pageSize, phoneFilter, nullsafeDateString(startTime), orgMembership, excludingMembers, admin);
     }
 
     @Override
@@ -103,7 +115,9 @@ public final class AccountSummarySearch implements BridgeEntity {
                 && Objects.equals(offsetBy, other.offsetBy) && Objects.equals(pageSize, other.pageSize)
                 && Objects.equals(phoneFilter, other.phoneFilter)
                 && Objects.equals(nullsafeDateString(startTime), nullsafeDateString(other.startTime))
-                && Objects.equals(orgMembership, other.orgMembership);
+                && Objects.equals(orgMembership, other.orgMembership)
+                && Objects.equals(excludingMembers, other.excludingMembers)
+                && Objects.equals(admin, other.admin);
     }
     
     private String nullsafeDateString(DateTime dateTime) {
@@ -115,7 +129,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         return "AccountSummarySearch [offsetBy=" + offsetBy + ", pageSize=" + pageSize + ", emailFilter=" + emailFilter
                 + ", phoneFilter=" + phoneFilter + ", allOfGroups=" + allOfGroups + ", noneOfGroups=" + noneOfGroups
                 + ", language=" + language + ", startTime=" + startTime + ", endTime=" + endTime + ", orgMembership="
-                + orgMembership + "]";
+                + orgMembership + ", excludingMembers=" + excludingMembers + ", admin=" + admin + "]";
     }
     
     public static class Builder {
@@ -129,6 +143,8 @@ public final class AccountSummarySearch implements BridgeEntity {
         private DateTime startTime;
         private DateTime endTime;
         private String orgMembership;
+        private boolean excludingMembers;
+        private Boolean admin;
         
         public Builder withOffsetBy(Integer offsetBy) {
             this.offsetBy = offsetBy;
@@ -176,6 +192,14 @@ public final class AccountSummarySearch implements BridgeEntity {
             this.orgMembership = orgId;
             return this;
         }
+        public Builder withExcludingMembers(boolean excludingMembers) {
+            this.excludingMembers = excludingMembers;
+            return this;
+        }
+        public Builder withAdmin(Boolean admin) {
+            this.admin = admin;
+            return this;
+        }
         public Builder copyOf(AccountSummarySearch search) {
             this.offsetBy = search.offsetBy;
             this.pageSize = search.pageSize;
@@ -186,14 +210,16 @@ public final class AccountSummarySearch implements BridgeEntity {
             this.language = search.language;
             this.startTime = search.startTime;
             this.endTime = search.endTime;
+            this.excludingMembers = search.excludingMembers;
             this.orgMembership = search.orgMembership;
+            this.admin = search.admin;
             return this;
         }
         public AccountSummarySearch build() {
             int defaultedOffsetBy = (offsetBy == null) ? 0 : offsetBy;
             int defaultedPageSize = (pageSize == null) ? API_DEFAULT_PAGE_SIZE : pageSize;
             return new AccountSummarySearch(defaultedOffsetBy, defaultedPageSize, emailFilter, phoneFilter, allOfGroups,
-                    noneOfGroups, language, startTime, endTime, orgMembership);
+                    noneOfGroups, language, startTime, endTime, orgMembership, excludingMembers, admin);
         }
     }
 
