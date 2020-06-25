@@ -28,11 +28,11 @@ public final class AccountSummarySearch implements BridgeEntity {
     private final DateTime endTime;
     private final String orgMembership;
     private final boolean excludingMembers;
-    private final Boolean admin;
+    private final Boolean adminOnly;
 
     private AccountSummarySearch(int offsetBy, int pageSize, String emailFilter, String phoneFilter,
             Set<String> allOfGroups, Set<String> noneOfGroups, String language, DateTime startTime, DateTime endTime,
-            String orgId, boolean excludingMembers, Boolean admin) {
+            String orgId, boolean excludingMembers, Boolean adminOnly) {
         this.offsetBy = offsetBy;
         this.pageSize = pageSize;
         this.emailFilter = emailFilter;
@@ -44,7 +44,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         this.endTime = endTime;
         this.orgMembership = orgId;
         this.excludingMembers = excludingMembers;
-        this.admin = admin;
+        this.adminOnly = adminOnly;
     }
 
     public int getOffsetBy() {
@@ -84,8 +84,8 @@ public final class AccountSummarySearch implements BridgeEntity {
         return excludingMembers;
     }
 
-    public Boolean isAdmin() {
-        return admin;
+    public Boolean isAdminOnly() {
+        return adminOnly;
     }
     
     @Override
@@ -95,7 +95,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         // versus ISOChronology[-07:00] if that's the offset at the time of serialization). Using the ISO String
         // representation of the DateTime gives us equality across serialization.
         return Objects.hash(allOfGroups, emailFilter, nullsafeDateString(endTime), language, noneOfGroups, offsetBy,
-                pageSize, phoneFilter, nullsafeDateString(startTime), orgMembership, excludingMembers, admin);
+                pageSize, phoneFilter, nullsafeDateString(startTime), orgMembership, excludingMembers, adminOnly);
     }
 
     @Override
@@ -117,7 +117,7 @@ public final class AccountSummarySearch implements BridgeEntity {
                 && Objects.equals(nullsafeDateString(startTime), nullsafeDateString(other.startTime))
                 && Objects.equals(orgMembership, other.orgMembership)
                 && Objects.equals(excludingMembers, other.excludingMembers)
-                && Objects.equals(admin, other.admin);
+                && Objects.equals(adminOnly, other.adminOnly);
     }
     
     private String nullsafeDateString(DateTime dateTime) {
@@ -129,7 +129,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         return "AccountSummarySearch [offsetBy=" + offsetBy + ", pageSize=" + pageSize + ", emailFilter=" + emailFilter
                 + ", phoneFilter=" + phoneFilter + ", allOfGroups=" + allOfGroups + ", noneOfGroups=" + noneOfGroups
                 + ", language=" + language + ", startTime=" + startTime + ", endTime=" + endTime + ", orgMembership="
-                + orgMembership + ", excludingMembers=" + excludingMembers + ", admin=" + admin + "]";
+                + orgMembership + ", excludingMembers=" + excludingMembers + ", adminOnly=" + adminOnly + "]";
     }
     
     public static class Builder {
@@ -144,7 +144,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         private DateTime endTime;
         private String orgMembership;
         private boolean excludingMembers;
-        private Boolean admin;
+        private Boolean adminOnly;
         
         public Builder withOffsetBy(Integer offsetBy) {
             this.offsetBy = offsetBy;
@@ -196,8 +196,8 @@ public final class AccountSummarySearch implements BridgeEntity {
             this.excludingMembers = excludingMembers;
             return this;
         }
-        public Builder withAdmin(Boolean admin) {
-            this.admin = admin;
+        public Builder withAdminOnly(Boolean adminOnly) {
+            this.adminOnly = adminOnly;
             return this;
         }
         public Builder copyOf(AccountSummarySearch search) {
@@ -212,14 +212,14 @@ public final class AccountSummarySearch implements BridgeEntity {
             this.endTime = search.endTime;
             this.excludingMembers = search.excludingMembers;
             this.orgMembership = search.orgMembership;
-            this.admin = search.admin;
+            this.adminOnly = search.adminOnly;
             return this;
         }
         public AccountSummarySearch build() {
             int defaultedOffsetBy = (offsetBy == null) ? 0 : offsetBy;
             int defaultedPageSize = (pageSize == null) ? API_DEFAULT_PAGE_SIZE : pageSize;
             return new AccountSummarySearch(defaultedOffsetBy, defaultedPageSize, emailFilter, phoneFilter, allOfGroups,
-                    noneOfGroups, language, startTime, endTime, orgMembership, excludingMembers, admin);
+                    noneOfGroups, language, startTime, endTime, orgMembership, excludingMembers, adminOnly  );
         }
     }
 

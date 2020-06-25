@@ -77,7 +77,7 @@ public class AccountSummarySearchTest {
             .withEndTime(endTime)
             .withExcludingMembers(true)
             .withOrgMembership(TEST_ORG_ID)
-            .withAdmin(true).build();
+            .withAdminOnly(true).build();
         
         String json = BridgeObjectMapper.get().writeValueAsString(search);
         JsonNode node = BridgeObjectMapper.get().readTree(json);
@@ -98,7 +98,7 @@ public class AccountSummarySearchTest {
         assertEquals(deser.getEndTime(), endTime);
         assertTrue(deser.isExcludingMembers());
         assertEquals(deser.getOrgMembership(), TEST_ORG_ID);
-        assertTrue(deser.isAdmin());
+        assertTrue(deser.isAdminOnly());
     }
     
     @Test
@@ -118,7 +118,7 @@ public class AccountSummarySearchTest {
             .withEndTime(endTime)
             .withExcludingMembers(true)
             .withOrgMembership(TEST_ORG_ID)
-            .withAdmin(false).build();
+            .withAdminOnly(false).build();
 
         AccountSummarySearch copy = new AccountSummarySearch.Builder().copyOf(search).build();
         assertEquals(copy.getOffsetBy(), 10);
@@ -132,7 +132,7 @@ public class AccountSummarySearchTest {
         assertEquals(copy.getEndTime(), endTime);
         assertEquals(copy.getOrgMembership(), TEST_ORG_ID);
         assertTrue(copy.isExcludingMembers());
-        assertFalse(copy.isAdmin());
+        assertFalse(copy.isAdminOnly());
     }
     
     @Test

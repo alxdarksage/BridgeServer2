@@ -159,7 +159,7 @@ public class HibernateAccountDao implements AccountDao {
             }
             builder.dataGroups(search.getAllOfGroups(), "IN");
             builder.dataGroups(search.getNoneOfGroups(), "NOT IN");
-            builder.admin(search.isAdmin());
+            builder.admin(search.isAdminOnly());
         }
         Set<String> callerSubstudies = context.getCallerSubstudies();
         if (!callerSubstudies.isEmpty()) {
@@ -168,7 +168,6 @@ public class HibernateAccountDao implements AccountDao {
         if (!isCount) {
             builder.append("GROUP BY acct.id");        
         }
-        System.out.println(builder.getQuery());
         return builder;
     }
 
