@@ -153,7 +153,9 @@ public class HibernateAccountDao implements AccountDao {
             if (search.getEndTime() != null) {
                 builder.append("AND acct.createdOn <= :endTime", "endTime", search.getEndTime());
             }
-            builder.organization(search.isExcludingMembers(), search.getOrgMembership());
+            if (search.getOrgMembership() != null) {
+                builder.append("AND acct.orgMembership = :orgId", "orgId", search.getOrgMembership());
+            }        
             if (search.getLanguage() != null) {
                 builder.append("AND :language IN ELEMENTS(acct.languages)", "language", search.getLanguage());
             }

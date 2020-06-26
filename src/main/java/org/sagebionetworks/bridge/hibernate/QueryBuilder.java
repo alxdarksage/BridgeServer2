@@ -50,24 +50,14 @@ class QueryBuilder {
     public void admin(Boolean isAdmin) {
         if (isAdmin != null) {
             if (isAdmin.booleanValue()) {
+                // Get unassigned admin accounts only
                 phrases.add("AND size(acct.roles) > 0");
+                phrases.add("AND acct.orgMembership IS NULL");
             } else {
+                // Get non-admin accounts
                 phrases.add("AND size(acct.roles) = 0");
             }
         }
-    }
-    /** 
-     * We have three search states: find everyone (don't exclude organization members or require
-     * membership in a specific organization); find people who are unassigned; and find people
-     * who are assigned to a specific organization. excludeOrgMembers=true, admin=true finds a
-     * list of unassigned admins who can be assigned to an organization.
-     */
-    public void organization(boolean excludingMembers, String orgMembership) {
-        if (excludingMembers) {
-            phrases.add("AND acct.orgMembership IS NULL");
-        } else if (orgMembership != null) {
-            this.append("AND acct.orgMembership = :orgId", "orgId", orgMembership);
-        }        
     }
     public String getQuery() {
         return BridgeUtils.SPACE_JOINER.join(phrases);

@@ -713,8 +713,8 @@ public class BridgeUtils {
         if (isBlank(ownerId)) {
             throw new UnauthorizedException(CALLER_NOT_MEMBER_ERROR);
         }
-        Set<String> callerSubstudies = BridgeUtils.getRequestContext().getCallerSubstudies();
-        if (callerSubstudies.isEmpty() || callerSubstudies.contains(ownerId)) {
+        String callerOrgMembership = BridgeUtils.getRequestContext().getCallerOrgMembership();
+        if (callerOrgMembership == null || ownerId.equals(callerOrgMembership)) {
             return;
         }
         throw new UnauthorizedException(CALLER_NOT_MEMBER_ERROR);
@@ -733,9 +733,9 @@ public class BridgeUtils {
         }
         String originAppId = parts[0];
         String originOrgId = parts[1];
-        Set<String> callerSubstudies = BridgeUtils.getRequestContext().getCallerSubstudies();
-        boolean scopedUser = !callerSubstudies.isEmpty();
-        boolean orgMember = callerSubstudies.contains(originOrgId);
+        String callerOrgMembership = BridgeUtils.getRequestContext().getCallerOrgMembership();
+        boolean scopedUser = callerOrgMembership != null;
+        boolean orgMember = originOrgId.equals(callerOrgMembership);
         
         if (!callerAppId.equals(originAppId) || (scopedUser && !orgMember)) {
             throw new UnauthorizedException(CALLER_NOT_MEMBER_ERROR);

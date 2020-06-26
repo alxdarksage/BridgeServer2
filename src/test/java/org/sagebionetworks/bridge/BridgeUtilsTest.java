@@ -945,7 +945,7 @@ public class BridgeUtilsTest {
     @Test
     public void checkOwnershipScopedUser() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of(OWNER_ID)).build());
+                .withCallerOrgMembership(OWNER_ID).build());
         BridgeUtils.checkOwnership(TEST_APP_ID, OWNER_ID);
     }
     
@@ -953,7 +953,7 @@ public class BridgeUtilsTest {
             expectedExceptionsMessageRegExp = CALLER_NOT_MEMBER_ERROR)
     public void checkOwnershipScopedUserOrgIdIsMissing() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of("notValidOwner")).build());
+                .withCallerOrgMembership("notValidOwner").build());
         BridgeUtils.checkOwnership(TEST_APP_ID, OWNER_ID);
     }
     
@@ -980,7 +980,7 @@ public class BridgeUtilsTest {
     @Test
     public void sharedOwnershipScopedUser() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of(OWNER_ID)).build());
+                .withCallerOrgMembership(OWNER_ID).build());
         BridgeUtils.checkSharedOwnership(TEST_APP_ID, GUID, SHARED_OWNER_ID);
     }
     
@@ -988,7 +988,7 @@ public class BridgeUtilsTest {
             expectedExceptionsMessageRegExp = CALLER_NOT_MEMBER_ERROR)
     public void checkSharedOwnershipScopedUserOrgIdIsMissing() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of("notValidOwner")).build());
+                .withCallerOrgMembership("notValidOwner").build());
         BridgeUtils.checkSharedOwnership(TEST_APP_ID, GUID, SHARED_OWNER_ID);
     }
     
@@ -996,7 +996,7 @@ public class BridgeUtilsTest {
             expectedExceptionsMessageRegExp = CALLER_NOT_MEMBER_ERROR)
     public void checkSharedOwnershipWrongAppId() { 
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of(TEST_APP_ID)).build());
+                .withCallerOrgMembership(TEST_APP_ID).build());
         BridgeUtils.checkSharedOwnership(TEST_APP_ID, GUID, "other:"+OWNER_ID);        
     }
     

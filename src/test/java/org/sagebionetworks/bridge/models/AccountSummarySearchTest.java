@@ -11,10 +11,12 @@ import org.sagebionetworks.bridge.json.BridgeObjectMapper;
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Sets;
 
 import nl.jqno.equalsverifier.EqualsVerifier;
@@ -48,7 +50,6 @@ public class AccountSummarySearchTest {
                 .withLanguage("en")
                 .withStartTime(startTime)
                 .withEndTime(endTime)
-                .withOrgMembership(TEST_ORG_ID)
                 .build();
         
         ObjectMapper mapper = BridgeObjectMapper.get();
@@ -56,6 +57,22 @@ public class AccountSummarySearchTest {
         AccountSummarySearch search2 = mapper.readValue(json, AccountSummarySearch.class);
         
         assertEquals(search2, search1);
+    }
+    
+    @Test
+    public void orgMembershipNotSetByDeserialization() throws Exception {
+        AccountSummarySearch search1 = new AccountSummarySearch.Builder().withOrgMembership(TEST_ORG_ID).build();
+        
+        ObjectMapper mapper = BridgeObjectMapper.get();
+        JsonNode node = mapper.valueToTree(search1);
+        assertNull(node.get("orgMembership"));
+        
+        // Add it to the JSON, it is not deserialized
+        ((ObjectNode)node).put("orgMembership", "sage-bionetworks");
+        
+        AccountSummarySearch search2 = mapper.treeToValue(node, AccountSummarySearch.class);
+        
+        assertNull(search2.getOrgMembership());
     }
     
     @Test
@@ -75,8 +92,6 @@ public class AccountSummarySearchTest {
             .withLanguage("en")
             .withStartTime(startTime)
             .withEndTime(endTime)
-            .withExcludingMembers(true)
-            .withOrgMembership(TEST_ORG_ID)
             .withAdminOnly(true).build();
         
         String json = BridgeObjectMapper.get().writeValueAsString(search);
@@ -96,8 +111,6 @@ public class AccountSummarySearchTest {
         assertEquals(deser.getLanguage(), "en");
         assertEquals(deser.getStartTime(), startTime);
         assertEquals(deser.getEndTime(), endTime);
-        assertTrue(deser.isExcludingMembers());
-        assertEquals(deser.getOrgMembership(), TEST_ORG_ID);
         assertTrue(deser.isAdminOnly());
     }
     
@@ -116,7 +129,6 @@ public class AccountSummarySearchTest {
             .withLanguage("en")
             .withStartTime(startTime)
             .withEndTime(endTime)
-            .withExcludingMembers(true)
             .withOrgMembership(TEST_ORG_ID)
             .withAdminOnly(false).build();
 
@@ -131,7 +143,6 @@ public class AccountSummarySearchTest {
         assertEquals(copy.getStartTime(), startTime);
         assertEquals(copy.getEndTime(), endTime);
         assertEquals(copy.getOrgMembership(), TEST_ORG_ID);
-        assertTrue(copy.isExcludingMembers());
         assertFalse(copy.isAdminOnly());
     }
     

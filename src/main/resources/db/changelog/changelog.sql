@@ -374,3 +374,8 @@ ADD COLUMN `orgMembership` varchar(255),
 ADD CONSTRAINT FOREIGN KEY (`studyId`, `orgMembership`) REFERENCES `Organizations` (`appId`, `identifier`);
 
 CREATE INDEX `Accounts-OrgMembership` ON `Accounts` (`studyId`, `orgMembership`);
+
+-- changeset bridge:18
+
+ALTER TABLE `Assessments`
+ADD CONSTRAINT FOREIGN KEY (`appId`, `ownerId`) REFERENCES `Organizations` (`appId`, `identifier`);

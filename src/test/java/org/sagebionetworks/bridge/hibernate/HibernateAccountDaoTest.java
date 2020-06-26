@@ -949,6 +949,37 @@ public class HibernateAccountDaoTest extends Mockito {
     }
 
     @Test
+    public void adminTrueQueryCorrect() throws Exception {
+        AccountSummarySearch search = new AccountSummarySearch.Builder()
+                .withAdminOnly(true).build();
+
+        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
+                search, false);
+
+        String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN "
+                +"acct.accountSubstudies AS acctSubstudy WITH acct.id = acctSubstudy.accountId "
+                +"WHERE acct.appId = :appId AND size(acct.roles) > 0 AND acct.orgMembership IS "
+                +"NULL GROUP BY acct.id";
+
+        assertEquals(builder.getQuery(), finalQuery);
+    }
+    
+    @Test
+    public void adminFalseQueryCorrect() throws Exception {
+        AccountSummarySearch search = new AccountSummarySearch.Builder()
+                .withAdminOnly(false).build();
+
+        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
+                search, false);
+
+        String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN "
+                +"acct.accountSubstudies AS acctSubstudy WITH acct.id = acctSubstudy.accountId "
+                +"WHERE acct.appId = :appId AND size(acct.roles) = 0 GROUP BY acct.id";
+
+        assertEquals(builder.getQuery(), finalQuery);
+    }
+    
+    @Test
     public void getAppIdsForUser() throws Exception {
         List<String> queryResult = ImmutableList.of("appA", "appB");
         when(mockHibernateHelper.queryGet(any(), any(), any(), any(), eq(String.class))).thenReturn(queryResult);

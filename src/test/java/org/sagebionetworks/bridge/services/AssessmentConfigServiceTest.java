@@ -131,7 +131,7 @@ public class AssessmentConfigServiceTest extends Mockito {
             expectedExceptionsMessageRegExp = "AssessmentConfig not found.")
     public void getSharedAssessmentConfigNotFound() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of("substudyA")).build());
+                .withCallerOrgMembership("substudyA").build());
         
         Assessment assessment = AssessmentTest.createAssessment();
         assessment.setOwnerId("api:substudyA");
@@ -313,7 +313,7 @@ public class AssessmentConfigServiceTest extends Mockito {
             expectedExceptionsMessageRegExp = CALLER_NOT_MEMBER_ERROR)
     public void getAssessmentConfigCheckOwnership() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of("substudyA")).build());
+                .withCallerOrgMembership("substudyA").build());
         
         Assessment assessment = AssessmentTest.createAssessment();
         assessment.setOwnerId("substudyB");
@@ -327,7 +327,7 @@ public class AssessmentConfigServiceTest extends Mockito {
             expectedExceptionsMessageRegExp = CALLER_NOT_MEMBER_ERROR)
     public void updateAssessmentConfigCheckOwnership() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of("substudyA")).build());
+                .withCallerOrgMembership("substudyA").build());
         
         Assessment assessment = AssessmentTest.createAssessment();
         assessment.setOwnerId("substudyB");
@@ -342,7 +342,7 @@ public class AssessmentConfigServiceTest extends Mockito {
             expectedExceptionsMessageRegExp = CALLER_NOT_MEMBER_ERROR)
     public void customizeAssessmentConfigCheckOwnership() {
         BridgeUtils.setRequestContext(new RequestContext.Builder()
-                .withCallerSubstudies(ImmutableSet.of("substudyA")).build());
+                .withCallerOrgMembership("substudyA").build());
         
         Assessment assessment = AssessmentTest.createAssessment();
         assessment.setOwnerId("substudyB");

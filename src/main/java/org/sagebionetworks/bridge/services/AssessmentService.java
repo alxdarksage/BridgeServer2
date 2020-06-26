@@ -32,7 +32,6 @@ import java.util.Set;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 
 import org.apache.commons.lang3.StringUtils;
 import org.joda.time.DateTime;
@@ -60,7 +59,7 @@ public class AssessmentService {
     
     private AssessmentConfigService configService;
     
-    private SubstudyService substudyService;
+    private OrganizationService organizationService;
     
     @Autowired
     final void setAssessmentDao(AssessmentDao assessmentDao) {
@@ -73,8 +72,8 @@ public class AssessmentService {
     }
     
     @Autowired
-    final void setSubstudyService(SubstudyService substudyService) {
-        this.substudyService = substudyService;
+    final void setOrganizationService(OrganizationService organizationService) {
+        this.organizationService = organizationService;
     }
     
     // accessor to mock for tests
@@ -195,7 +194,7 @@ public class AssessmentService {
         if (SYNONYMS.get(osName) != null) {
             assessment.setOsName(SYNONYMS.get(osName));
         }
-        AssessmentValidator validator = new AssessmentValidator(substudyService, appId);
+        AssessmentValidator validator = new AssessmentValidator(appId, organizationService);
         Validate.entityThrowingException(validator, assessment);
 
         return dao.updateAssessment(appId, assessment);        
@@ -330,9 +329,9 @@ public class AssessmentService {
         // If the caller did not provide an ownerId, but they only have one ownerId, use 
         // that ownerId. It's possible there are client apps where the organizational 
         // memberships are not exposed to the calling user.
-        Set<String> ownerIds = BridgeUtils.getRequestContext().getCallerSubstudies();
-        if (ownerId == null && ownerIds.size() == 1) {
-            ownerId = Iterables.getFirst(ownerIds, null);
+        String callerOrgMembership = BridgeUtils.getRequestContext().getCallerOrgMembership();
+        if (ownerId == null && callerOrgMembership != null) {
+            ownerId = callerOrgMembership;
         }
         if (isBlank(ownerId)) {
             throw new BadRequestException("ownerId parameter is required");
@@ -395,7 +394,7 @@ public class AssessmentService {
         if (SYNONYMS.get(osName) != null) {
             assessment.setOsName(SYNONYMS.get(osName));
         }
-        AssessmentValidator validator = new AssessmentValidator(substudyService, appId);
+        AssessmentValidator validator = new AssessmentValidator(appId, organizationService);
         Validate.entityThrowingException(validator, assessment);
         
         AssessmentConfig config = new AssessmentConfig();

@@ -10,9 +10,22 @@ import org.joda.time.DateTime;
 import org.sagebionetworks.bridge.json.DateTimeDeserializer;
 import org.sagebionetworks.bridge.json.DateTimeSerializer;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+/**
+ * For filtering administrative accounts, there are three use cases:
+ * 
+ * 1. For the members of an organization, set the organization ID in these search terms;
+ * 2. For unassigned administrative accounts that could be assigned to an organization, 
+ *    set admin=true in these search terms, and only unassigned admin accounts will be returned;
+ * 3. For backwards compatibility, set admin=false and orgMembership=null, and all accounts
+ *    will continue to be returned.
+ *    
+ * The orgMembership field is not settable by users of the API. It is set depending on the 
+ * endpoint that was called (membership or participant APIs).
+ */
 @JsonDeserialize(builder = AccountSummarySearch.Builder.class)
 public final class AccountSummarySearch implements BridgeEntity {
     
@@ -26,13 +39,13 @@ public final class AccountSummarySearch implements BridgeEntity {
     private final String language;
     private final DateTime startTime;
     private final DateTime endTime;
+    
     private final String orgMembership;
-    private final boolean excludingMembers;
     private final Boolean adminOnly;
 
     private AccountSummarySearch(int offsetBy, int pageSize, String emailFilter, String phoneFilter,
             Set<String> allOfGroups, Set<String> noneOfGroups, String language, DateTime startTime, DateTime endTime,
-            String orgId, boolean excludingMembers, Boolean adminOnly) {
+            String orgId, Boolean adminOnly) {
         this.offsetBy = offsetBy;
         this.pageSize = pageSize;
         this.emailFilter = emailFilter;
@@ -43,7 +56,6 @@ public final class AccountSummarySearch implements BridgeEntity {
         this.startTime = startTime;
         this.endTime = endTime;
         this.orgMembership = orgId;
-        this.excludingMembers = excludingMembers;
         this.adminOnly = adminOnly;
     }
 
@@ -76,14 +88,10 @@ public final class AccountSummarySearch implements BridgeEntity {
     public DateTime getEndTime() {
         return endTime;
     }
+    @JsonIgnore
     public String getOrgMembership() {
         return orgMembership;
     }
-    
-    public boolean isExcludingMembers() { 
-        return excludingMembers;
-    }
-
     public Boolean isAdminOnly() {
         return adminOnly;
     }
@@ -95,7 +103,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         // versus ISOChronology[-07:00] if that's the offset at the time of serialization). Using the ISO String
         // representation of the DateTime gives us equality across serialization.
         return Objects.hash(allOfGroups, emailFilter, nullsafeDateString(endTime), language, noneOfGroups, offsetBy,
-                pageSize, phoneFilter, nullsafeDateString(startTime), orgMembership, excludingMembers, adminOnly);
+                pageSize, phoneFilter, nullsafeDateString(startTime), orgMembership, adminOnly);
     }
 
     @Override
@@ -116,7 +124,6 @@ public final class AccountSummarySearch implements BridgeEntity {
                 && Objects.equals(phoneFilter, other.phoneFilter)
                 && Objects.equals(nullsafeDateString(startTime), nullsafeDateString(other.startTime))
                 && Objects.equals(orgMembership, other.orgMembership)
-                && Objects.equals(excludingMembers, other.excludingMembers)
                 && Objects.equals(adminOnly, other.adminOnly);
     }
     
@@ -129,7 +136,7 @@ public final class AccountSummarySearch implements BridgeEntity {
         return "AccountSummarySearch [offsetBy=" + offsetBy + ", pageSize=" + pageSize + ", emailFilter=" + emailFilter
                 + ", phoneFilter=" + phoneFilter + ", allOfGroups=" + allOfGroups + ", noneOfGroups=" + noneOfGroups
                 + ", language=" + language + ", startTime=" + startTime + ", endTime=" + endTime + ", orgMembership="
-                + orgMembership + ", excludingMembers=" + excludingMembers + ", adminOnly=" + adminOnly + "]";
+                + orgMembership + ", adminOnly=" + adminOnly + "]";
     }
     
     public static class Builder {
@@ -143,7 +150,6 @@ public final class AccountSummarySearch implements BridgeEntity {
         private DateTime startTime;
         private DateTime endTime;
         private String orgMembership;
-        private boolean excludingMembers;
         private Boolean adminOnly;
         
         public Builder withOffsetBy(Integer offsetBy) {
@@ -188,12 +194,9 @@ public final class AccountSummarySearch implements BridgeEntity {
             this.endTime = endTime;
             return this;
         }
+        @JsonIgnore
         public Builder withOrgMembership(String orgId) {
             this.orgMembership = orgId;
-            return this;
-        }
-        public Builder withExcludingMembers(boolean excludingMembers) {
-            this.excludingMembers = excludingMembers;
             return this;
         }
         public Builder withAdminOnly(Boolean adminOnly) {
@@ -210,7 +213,6 @@ public final class AccountSummarySearch implements BridgeEntity {
             this.language = search.language;
             this.startTime = search.startTime;
             this.endTime = search.endTime;
-            this.excludingMembers = search.excludingMembers;
             this.orgMembership = search.orgMembership;
             this.adminOnly = search.adminOnly;
             return this;
@@ -219,7 +221,7 @@ public final class AccountSummarySearch implements BridgeEntity {
             int defaultedOffsetBy = (offsetBy == null) ? 0 : offsetBy;
             int defaultedPageSize = (pageSize == null) ? API_DEFAULT_PAGE_SIZE : pageSize;
             return new AccountSummarySearch(defaultedOffsetBy, defaultedPageSize, emailFilter, phoneFilter, allOfGroups,
-                    noneOfGroups, language, startTime, endTime, orgMembership, excludingMembers, adminOnly  );
+                    noneOfGroups, language, startTime, endTime, orgMembership, adminOnly);
         }
     }
 
