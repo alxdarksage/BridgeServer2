@@ -43,7 +43,7 @@ public class HibernateFileRevisionDao implements FileRevisionDao {
         
         List<FileRevision> revisions = hibernateHelper.queryGet(getQuery, params, offset, pageSize, FileRevision.class);
         
-        return new PagedResourceList<>(revisions, count)
+        return new PagedResourceList<>(revisions, count, true)
                 .withRequestParam("offsetBy", offset)
                 .withRequestParam("pageSize", pageSize);
     }

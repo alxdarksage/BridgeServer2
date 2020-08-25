@@ -39,7 +39,7 @@ public class HibernateSponsorDao implements SponsorDao {
                 "SELECT * " + builder.getQuery(), builder.getParameters(), 
                 offsetBy, pageSize, HibernateOrganization.class);
         
-        return new PagedResourceList<Organization>(ImmutableList.copyOf(organizations), total);
+        return new PagedResourceList<Organization>(ImmutableList.copyOf(organizations), total, true);
     }
 
     @Override
@@ -55,7 +55,7 @@ public class HibernateSponsorDao implements SponsorDao {
                 "SELECT * " + builder.getQuery(), builder.getParameters(), 
                 offsetBy, pageSize, HibernateStudy.class);
         
-        return new PagedResourceList<Study>(ImmutableList.copyOf(studies), total);
+        return new PagedResourceList<Study>(ImmutableList.copyOf(studies), total, true);
     }
 
     @Override

@@ -60,7 +60,7 @@ public class HibernateTemplateDao implements TemplateDao {
         List<? extends HibernateTemplate> results = hibernateHelper.queryGet(
                 getQuery, params, offset, pageSize, HibernateTemplate.class);
         
-        return new PagedResourceList<>(results, total)
+        return new PagedResourceList<>(results, total, true)
                 .withRequestParam(TEMPLATE_TYPE, type)
                 .withRequestParam(PAGE_SIZE, pageSize)
                 .withRequestParam(OFFSET_BY, offset)

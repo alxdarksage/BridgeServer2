@@ -67,7 +67,7 @@ public class HibernateAssessmentResourceDao implements AssessmentResourceDao {
                 builder.getParameters(), offsetBy, pageSize, HibernateAssessmentResource.class);
         
         List<AssessmentResource> dtos = resources.stream().map(AssessmentResource::create).collect(toList());
-        return new PagedResourceList<AssessmentResource>(dtos, total);
+        return new PagedResourceList<AssessmentResource>(dtos, total, true);
     }
     
     @Override

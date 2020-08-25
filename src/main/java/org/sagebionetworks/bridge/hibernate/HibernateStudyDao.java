@@ -43,7 +43,7 @@ public class HibernateStudyDao implements StudyDao {
                 offsetBy, pageSize, HibernateStudy.class);
         List<Study> studies = ImmutableList.copyOf(hibStudies);
         
-        return new PagedResourceList<>(studies, total);
+        return new PagedResourceList<>(studies, total, true);
     }
 
     @Override

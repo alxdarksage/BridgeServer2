@@ -55,7 +55,7 @@ public class HibernateFileMetadataDao implements FileMetadataDao {
         
         List<FileMetadata> files = hibernateHelper.queryGet(getQuery, params, offset, limit, FileMetadata.class);
         
-        return new PagedResourceList<>(files, count)
+        return new PagedResourceList<>(files, count, true)
                 .withRequestParam("offsetBy", offset)
                 .withRequestParam("pageSize", limit)
                 .withRequestParam("includeDeleted", includeDeleted);
