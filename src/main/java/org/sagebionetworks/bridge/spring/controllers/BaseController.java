@@ -46,6 +46,7 @@ import org.sagebionetworks.bridge.models.accounts.UserSession;
 import org.sagebionetworks.bridge.models.apps.App;
 import org.sagebionetworks.bridge.services.AccountService;
 import org.sagebionetworks.bridge.services.AuthenticationService;
+import org.sagebionetworks.bridge.services.RequestContextUpdateService;
 import org.sagebionetworks.bridge.services.RequestInfoService;
 import org.sagebionetworks.bridge.services.SessionUpdateService;
 import org.sagebionetworks.bridge.services.AppService;
@@ -80,6 +81,8 @@ public abstract class BaseController {
     
     RequestInfoService requestInfoService;
     
+    RequestContextUpdateService requestContextUpdateService;
+    
     @Autowired
     final void setBridgeConfig(BridgeConfig bridgeConfig) {
         this.bridgeConfig = bridgeConfig;
@@ -113,6 +116,11 @@ public abstract class BaseController {
     @Autowired
     final void setRequestInfoService(RequestInfoService requestInfoService) {
         this.requestInfoService = requestInfoService;
+    }
+    
+    @Autowired
+    final void setRequestContextUpdateService(RequestContextUpdateService requestContextUpdateService) {
+        this.requestContextUpdateService = requestContextUpdateService;
     }
     
     protected HttpServletRequest request() {
@@ -181,20 +189,9 @@ public abstract class BaseController {
             throw new NotAuthenticatedException();
         }
         
-        // This request has required the presence of a session, so we add additional information about the user to 
-        // the existing request context (which starts with only the information present in HTTP headers). This will 
-        // be immediately removed from the thread local if an exception is thrown.
-        RequestContext.Builder builder = BridgeUtils.getRequestContext().toBuilder();
-        // If the user has already persisted languages, we'll use that instead of the Accept-Language header
-        builder.withCallerLanguages(getLanguages(session));
-        builder.withCallerAppId(session.getAppId());
-        builder.withCallerOrgMembership(session.getParticipant().getOrgMembership());
-        builder.withCallerStudies(session.getParticipant().getStudyIds());
-        builder.withCallerRoles(session.getParticipant().getRoles());
-        builder.withCallerUserId(session.getParticipant().getId());
-        RequestContext reqContext = builder.build();
-        BridgeUtils.setRequestContext(reqContext);
-        
+        getLanguages(session);
+        RequestContext reqContext = requestContextUpdateService.updateFromSession(session);
+                
         // Sessions are locked to an IP address if (a) it is enabled in the app for unprivileged participant accounts
         // or (b) always for privileged accounts.
         App app = appService.getApp(session.getAppId());
