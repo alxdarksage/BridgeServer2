@@ -22,6 +22,16 @@ import org.sagebionetworks.bridge.models.BridgeEntity;
 @JsonDeserialize(as=HibernateEnrollment.class)
 public interface Enrollment extends BridgeEntity {
     
+    static Enrollment create(String studyId, String externalId) {
+        checkNotNull(studyId);
+        checkNotNull(externalId);
+        
+        HibernateEnrollment enrollment = new HibernateEnrollment();
+        enrollment.setStudyId(studyId);
+        enrollment.setExternalId(externalId);
+        return enrollment;
+    }
+    
     static Enrollment create(String appId, String studyId, String accountId) {
         checkNotNull(appId);
         checkNotNull(studyId);

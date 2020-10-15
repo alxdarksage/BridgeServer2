@@ -3,9 +3,11 @@ package org.sagebionetworks.bridge.validators;
 import static org.sagebionetworks.bridge.TestConstants.SYNAPSE_USER_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
+import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY_ID;
 import static org.sagebionetworks.bridge.TestUtils.assertValidatorMessage;
+import static org.sagebionetworks.bridge.validators.StudyParticipantValidator.ENROLLMENT_REQ_FOR_EXTID;
+import static org.sagebionetworks.bridge.validators.StudyParticipantValidator.ENROLLMENT_REQ_FOR_STUDIES;
 import static org.testng.Assert.assertNull;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
 import java.util.Map;
@@ -23,14 +25,13 @@ import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.TestConstants;
 import org.sagebionetworks.bridge.exceptions.InvalidEntityException;
-import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.Phone;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.apps.App;
 import org.sagebionetworks.bridge.models.apps.PasswordPolicy;
 import org.sagebionetworks.bridge.models.organizations.Organization;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 import org.sagebionetworks.bridge.models.studies.Study;
-import org.sagebionetworks.bridge.services.ExternalIdService;
 import org.sagebionetworks.bridge.services.OrganizationService;
 import org.sagebionetworks.bridge.services.StudyService;
 
@@ -42,13 +43,9 @@ public class StudyParticipantValidatorTest {
     
     private static final Set<String> APP_PROFILE_ATTRS = BridgeUtils.commaListToOrderedSet("attr1,attr2");
     private static final Set<String> APP_DATA_GROUPS = BridgeUtils.commaListToOrderedSet("group1,group2,bluebell");
-    private static final ExternalIdentifier EXT_ID = ExternalIdentifier.create(TEST_APP_ID, "id");
     private App app;
 
     private StudyParticipantValidator validator;
-    
-    @Mock
-    private ExternalIdService externalIdService;
     
     @Mock
     private StudyService studyService;
@@ -81,7 +78,6 @@ public class StudyParticipantValidatorTest {
     @Test
     public void validatesNew() throws Exception {
         validator = makeValidator(true);
-        app.setExternalIdRequiredOnSignup(true);
         
         Map<String,String> attrs = Maps.newHashMap();
         attrs.put("badValue", "value");
@@ -91,8 +87,7 @@ public class StudyParticipantValidatorTest {
                 .withAttributes(attrs)
                 .withPassword("bad")
                 .build();
-        assertValidatorMessage(validator, participant, "StudyParticipant", "email, phone, synapseUserId or externalId is required");
-        assertValidatorMessage(validator, participant, "externalId", "is required");
+        assertValidatorMessage(validator, participant, "StudyParticipant", "email, phone, synapseUserId or an enrollment is required");
         assertValidatorMessage(validator, participant, "dataGroups", "'badGroup' is not defined for app (use group1, group2, bluebell)");
         assertValidatorMessage(validator, participant, "attributes", "'badValue' is not defined for app (use attr1, attr2, phone)");
         assertValidatorMessage(validator, participant, "password", "must be at least 8 characters");
@@ -149,9 +144,9 @@ public class StudyParticipantValidatorTest {
     }
     
     @Test
-    public void emailPhoneSynapseUserIdOrExternalIdRequired() {
+    public void emailPhoneSynapseUserIdOrEnrollmentRequired() {
         validator = makeValidator(true);
-        assertValidatorMessage(validator, withEmail(null), "StudyParticipant", "email, phone, synapseUserId or externalId is required");
+        assertValidatorMessage(validator, withEmail(null), "StudyParticipant", "email, phone, synapseUserId or an enrollment is required");
     }
     
     @Test
@@ -173,11 +168,50 @@ public class StudyParticipantValidatorTest {
     }
     
     @Test
-    public void externalIdOnlyOK() {
-        StudyParticipant participant = new StudyParticipant.Builder().withExternalId("external-id").build();
+    public void externalIdIsInvalidOnCreate() {
+        validator = makeValidator(true);
+        StudyParticipant participant = new StudyParticipant.Builder()
+                .withExternalId("external-id").build();
+        
+        assertValidatorMessage(validator, participant, "externalId", ENROLLMENT_REQ_FOR_EXTID);
+    }
+    
+    @Test
+    public void externalIdIsInvalidOnUpdate() {
+        validator = makeValidator(false);
+        StudyParticipant participant = new StudyParticipant.Builder()
+                .withExternalId("external-id").build();
+        
+        assertValidatorMessage(validator, participant, "externalId", ENROLLMENT_REQ_FOR_EXTID);
+    }
+    
+    @Test
+    public void studyIdsIsInvalidOnCreate() {
+        validator = makeValidator(true);
+        StudyParticipant participant = new StudyParticipant.Builder()
+                .withStudyIds(ImmutableSet.of("A", "B")).build();
+        
+        assertValidatorMessage(validator, participant, "studyIds", ENROLLMENT_REQ_FOR_STUDIES);
+    }
+    
+    @Test
+    public void studyIdsIsInvalidOnUpdate() {
+        validator = makeValidator(false);
+        StudyParticipant participant = new StudyParticipant.Builder()
+                .withStudyIds(ImmutableSet.of("A")).build();
+        
+        assertValidatorMessage(validator, participant, "studyIds", ENROLLMENT_REQ_FOR_STUDIES);
+    }
+    
+    @Test
+    public void enrollmentOnlyOK() {
+        RequestContext.set(new RequestContext.Builder()
+                .withOrgSponsoredStudies(ImmutableSet.of(TEST_STUDY_ID)).build());
+        
+        StudyParticipant participant = new StudyParticipant.Builder().withEnrollment(
+                Enrollment.create(TEST_APP_ID, TEST_STUDY_ID, "id", "external-id")).build();
 
-        when(externalIdService.getExternalId(TEST_APP_ID, "external-id"))
-                .thenReturn(Optional.of(ExternalIdentifier.create(TEST_APP_ID, "external-id")));
+        when(studyService.getStudy(TEST_APP_ID, TEST_STUDY_ID, false)).thenReturn(Study.create());
         
         validator = makeValidator(true);
         Validate.entityThrowingException(validator, participant);
@@ -290,82 +324,18 @@ public class StudyParticipantValidatorTest {
     }
     
     @Test
-    public void createWithExternalIdManagedOk() {
-        when(externalIdService.getExternalId(app.getIdentifier(), "foo")).thenReturn(Optional.of(EXT_ID));
-        StudyParticipant participant = withExternalId("foo");
-
-        validator = makeValidator(true);
-        Validate.entityThrowingException(validator, participant);
-    }
-    @Test
-    public void createWithExternalIdManagedInvalid() {
-        when(externalIdService.getExternalId(any(), any())).thenReturn(Optional.empty());
-        StudyParticipant participant = withExternalId("wrong-external-id");
+    public void emptyEnrollmentStudyIdInvalidOnCreate() {
+        StudyParticipant participant = withEnrollment(" ", "id");
         
         validator = makeValidator(true);
-        assertValidatorMessage(validator, participant, "externalId", "is not a valid external ID");
+        assertValidatorMessage(validator, participant, "enrollment.studyId", "cannot be blank");
     }
     @Test
-    public void createWithoutExternalIdManagedOk() {
-        StudyParticipant participant = withEmail("email@email.com");
+    public void emptyEnrollmentExternalIdInvalidOnCreate() {
+        StudyParticipant participant = withEnrollment(TEST_STUDY_ID, " ");
         
         validator = makeValidator(true);
-        Validate.entityThrowingException(validator, participant);
-    }
-    @Test
-    public void createWithoutExternalIdManagedInvalid() {
-        app.setExternalIdRequiredOnSignup(true);
-        StudyParticipant participant = withEmail("email@email.com");
-        
-        validator = makeValidator(true);
-        assertValidatorMessage(validator, participant, "externalId", "is required");
-    }
-    @Test
-    public void createWithoutExternalIdManagedButHasRolesOK() {
-        app.setExternalIdRequiredOnSignup(true);
-        
-        StudyParticipant participant = new StudyParticipant.Builder().withEmail("email@email.com")
-                .withRoles(Sets.newHashSet(Roles.DEVELOPER)).build();
-        
-        validator = makeValidator(true);
-        Validate.entityThrowingException(validator, participant);
-    }
-    @Test
-    public void updateWithExternalIdManagedOk() {
-        when(externalIdService.getExternalId(app.getIdentifier(), "foo")).thenReturn(Optional.of(EXT_ID));
-        StudyParticipant participant = withExternalIdAndId("foo");
-        
-        validator = makeValidator(false);
-        Validate.entityThrowingException(validator, participant);
-    }
-    @Test
-    public void updateWithExternalIdManagedInvalid() {
-        when(externalIdService.getExternalId(any(), any())).thenReturn(Optional.empty());
-        StudyParticipant participant = withExternalId("does-not-exist");
-        
-        validator = makeValidator(false);
-        assertValidatorMessage(validator, participant, "externalId", "is not a valid external ID");
-    }
-    @Test
-    public void updateWithoutExternalIdManagedOk() {
-        StudyParticipant participant = withEmailAndId("email@email.com");
-        
-        validator = makeValidator(false);
-        Validate.entityThrowingException(validator, participant);
-    }
-    @Test
-    public void emptyExternalIdInvalidOnCreate() {
-        StudyParticipant participant = withExternalId(" ");
-        
-        validator = makeValidator(true);
-        assertValidatorMessage(validator, participant, "externalId", "cannot be blank");
-    }
-    @Test
-    public void emptyExternalIdInvalidOnUpdate() {
-        StudyParticipant participant = withExternalId(" ");
-        
-        validator = makeValidator(false);
-        assertValidatorMessage(validator, participant, "externalId", "cannot be blank");
+        assertValidatorMessage(validator, participant, "enrollment.externalId", "cannot be blank");
     }
     @Test
     public void emptySynapseUserIdOnCreate() {
@@ -382,12 +352,14 @@ public class StudyParticipantValidatorTest {
         assertValidatorMessage(validator, participant, "synapseUserId", "cannot be blank");
     }
     @Test
-    public void studyAllowedIfCallerHasNoStudies() {
+    public void enrollmentAllowedIfCallerHasNoStudies() {
+        RequestContext.set(new RequestContext.Builder()
+                .withOrgSponsoredStudies(ImmutableSet.of("studyA")).build());
+        
         // In other words, you can "taint" a user with studies, putting them in a limited security role.
-        StudyParticipant participant = withStudies("studyA", "studyB");
+        StudyParticipant participant = withEnrollment("studyA", "externalId");
         
         when(studyService.getStudy(app.getIdentifier(), "studyA", false)).thenReturn(study);
-        when(studyService.getStudy(app.getIdentifier(), "studyB", false)).thenReturn(study);
         
         validator = makeValidator(true);
         Validate.entityThrowingException(validator, participant);
@@ -395,10 +367,10 @@ public class StudyParticipantValidatorTest {
     @Test
     public void subsetOfStudiesOK() {
         RequestContext.set(new RequestContext.Builder()
-                .withCallerEnrolledStudies(ImmutableSet.of("studyA", "studyB", "studyC")).build());
+                .withOrgSponsoredStudies(ImmutableSet.of("studyA", "studyB", "studyC")).build());
         try {
             // The user (in three studies) can create a participant in only one of those studies
-            StudyParticipant participant = withStudies("studyB");
+            StudyParticipant participant = withEnrollment("studyB", "externalId");
             
             when(studyService.getStudy(app.getIdentifier(), "studyB", false)).thenReturn(study);
             
@@ -409,14 +381,14 @@ public class StudyParticipantValidatorTest {
         }
     }
     @Test
-    public void nonexistentStudyIds() {
+    public void enrollmentInInvalidStudy() {
         RequestContext.set(new RequestContext.Builder()
-                .withCallerEnrolledStudies(ImmutableSet.of("studyA", "studyC")).build());
+                .withOrgSponsoredStudies(ImmutableSet.of("studyA", "studyC")).build());
         try {
-            StudyParticipant participant = withStudies("studyA");
+            StudyParticipant participant = withEnrollment("studyB", "externalId");
             
             validator = makeValidator(true);
-            assertValidatorMessage(validator, participant, "studyIds[studyA]", "is not a study");
+            assertValidatorMessage(validator, participant, "enrollment.studyId", "is not a study of the caller");
         } finally {
             RequestContext.set(RequestContext.NULL_INSTANCE);
         }
@@ -466,15 +438,13 @@ public class StudyParticipantValidatorTest {
     }
     
     private StudyParticipantValidator makeValidator(boolean isNew) {
-        return new StudyParticipantValidator(externalIdService, studyService, mockOrganizationService, app, isNew);
+        return new StudyParticipantValidator(studyService, mockOrganizationService, app, isNew);
     }
 
-    private StudyParticipant withStudies(String... studyIds) {
-        return new StudyParticipant.Builder().withEmail("email@email.com").withStudyIds(ImmutableSet.copyOf(studyIds)).build();
-    }
     private StudyParticipant withMemberOrganization(String orgId) {
         return new StudyParticipant.Builder().withEmail("email@email.com").withOrgMembership(orgId).build();
     }
+    
     private StudyParticipant withPhone(String phone, String phoneRegion) {
         return new StudyParticipant.Builder().withPhone(new Phone(phone, phoneRegion)).build();
     }
@@ -491,18 +461,9 @@ public class StudyParticipantValidatorTest {
         return new StudyParticipant.Builder().withSynapseUserId(synapseUserId).build();
     }
     
-    private StudyParticipant withEmailAndId(String email) {
-        return new StudyParticipant.Builder().withId("id").withEmail(email).withPassword("aAz1%_aAz1%").build();
-    }
-    
-    private StudyParticipant withExternalId(String externalId) {
-        return new StudyParticipant.Builder().withEmail("email@email.com").withPassword("aAz1%_aAz1%")
-                .withExternalId(externalId).build();
-    }
-    
-    private StudyParticipant withExternalIdAndId(String externalId) {
+    private StudyParticipant withEnrollment(String studyId, String externalId) {
         return new StudyParticipant.Builder().withId("id").withEmail("email@email.com").withPassword("aAz1%_aAz1%")
-                .withExternalId(externalId).build();
+                .withEnrollment(Enrollment.create(TEST_APP_ID, studyId, "id", externalId)).build();
     }
     
     private StudyParticipant withDataGroup(String dataGroup) {

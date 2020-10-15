@@ -6,10 +6,13 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.sagebionetworks.bridge.TestConstants.SYNAPSE_USER_ID;
+import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
+import static org.sagebionetworks.bridge.TestConstants.TEST_STUDY_ID;
 import static org.sagebionetworks.bridge.models.accounts.AccountStatus.ENABLED;
 import static org.sagebionetworks.bridge.models.accounts.SharingScope.SPONSORS_AND_PARTNERS;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -27,10 +30,12 @@ import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.TestConstants;
 import org.sagebionetworks.bridge.TestUtils;
 import org.sagebionetworks.bridge.json.BridgeObjectMapper;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 import org.sagebionetworks.bridge.models.subpopulations.SubpopulationGuid;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -54,6 +59,7 @@ public class StudyParticipantTest {
     private static final Map<String,String> ATTRIBUTES = ImmutableMap.<String,String>builder()
             .put("A", "B")
             .put("C", "D").build();
+    private static final Enrollment ENROLLMENT = Enrollment.create(TEST_APP_ID, TEST_STUDY_ID, ACCOUNT_ID, "externalId");
     
     @Test
     public void hashEquals() {
@@ -111,7 +117,15 @@ public class StudyParticipantTest {
 
         assertEquals(node.get("attributes").get("A").textValue(), "B");
         assertEquals(node.get("attributes").get("C").textValue(), "D");
-        assertEquals(node.size(), 27);
+        assertEquals(node.size(), 28);
+        
+        ObjectNode enrollmentNode = (ObjectNode)node.get("enrollment");
+        System.out.println(enrollmentNode);
+        assertEquals(enrollmentNode.get("studyId").textValue(), TEST_STUDY_ID);
+        assertEquals(enrollmentNode.get("userId").textValue(), ACCOUNT_ID);
+        assertEquals(enrollmentNode.get("externalId").textValue(), "externalId");
+        assertFalse(enrollmentNode.get("consentRequired").booleanValue());
+        assertEquals(enrollmentNode.get("type").textValue(), "Enrollment");
         
         StudyParticipant deserParticipant = BridgeObjectMapper.get().readValue(node.toString(), StudyParticipant.class);
         assertEquals(deserParticipant.getFirstName(), "firstName");
@@ -135,6 +149,10 @@ public class StudyParticipantTest {
         assertEquals(deserParticipant.getId(), ACCOUNT_ID);
         assertEquals(deserParticipant.getExternalIds().get("studyA"), "externalIdA");
         assertEquals(deserParticipant.getOrgMembership(), TEST_ORG_ID);
+        
+        Enrollment enrollment = deserParticipant.getEnrollment();
+        assertEquals(enrollment.getStudyId(), TEST_STUDY_ID);
+        assertEquals(enrollment.getExternalId(), "externalId");
         
         UserConsentHistory deserHistory = deserParticipant.getConsentHistories().get("AAA").get(0);
         assertEquals(deserHistory.getBirthdate(), "2002-02-02");
@@ -386,6 +404,7 @@ public class StudyParticipantTest {
                 .withPhone(PHONE)
                 .withPhoneVerified(TRUE)
                 .withEmailVerified(TRUE)
+                .withEnrollment(ENROLLMENT)
                 .withExternalId("externalId")
                 .withSynapseUserId(SYNAPSE_USER_ID)
                 .withPassword("newUserPassword")

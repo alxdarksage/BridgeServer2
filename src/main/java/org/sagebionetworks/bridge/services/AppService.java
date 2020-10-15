@@ -273,8 +273,7 @@ public class AppService {
         checkNotNull(appAndUsers, Validate.CANNOT_BE_NULL, "app and users");
         
         App app = appAndUsers.getApp();
-        StudyParticipantValidator val = new StudyParticipantValidator(externalIdService, studyService,
-                organizationService, app, true);
+        StudyParticipantValidator val = new StudyParticipantValidator(studyService, organizationService, app, true);
         
         Errors errors = Validate.getErrorsFor(appAndUsers);
         

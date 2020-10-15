@@ -54,7 +54,7 @@ public class HibernateEnrollmentTest {
         
         Enrollment deser = BridgeObjectMapper.get().readValue(node.toString(), Enrollment.class);
         assertNull(deser.getAppId());
-        assertNull(deser.getStudyId());
+        assertEquals(deser.getStudyId(), TEST_STUDY_ID);
         assertEquals(deser.getAccountId(), "accountId");
         assertEquals(deser.getExternalId(), "externalId");
         assertEquals(deser.getEnrolledOn(), CREATED_ON);

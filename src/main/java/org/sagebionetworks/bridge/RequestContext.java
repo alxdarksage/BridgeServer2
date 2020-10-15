@@ -14,6 +14,7 @@ import org.sagebionetworks.bridge.models.Metrics;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.accounts.UserSession;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 import org.sagebionetworks.bridge.services.SponsorService;
 
 public class RequestContext {
@@ -56,6 +57,19 @@ public class RequestContext {
         builder.withCallerRoles(participant.getRoles());
         builder.withCallerUserId(participant.getId());
 
+        RequestContext reqContext = builder.build();
+        set(reqContext);
+        return reqContext;
+    }
+    
+    public static RequestContext updateFromEnrollment(Enrollment enrollment) {
+        RequestContext context = get();
+        RequestContext.Builder builder = context.toBuilder();
+        if (enrollment.getStudyId() != null) {
+            builder.withCallerEnrolledStudies(new ImmutableSet.Builder<String>()
+                .addAll(context.getCallerEnrolledStudies())
+                .add(enrollment.getStudyId()).build());
+        }
         RequestContext reqContext = builder.build();
         set(reqContext);
         return reqContext;

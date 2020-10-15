@@ -15,6 +15,7 @@ import org.sagebionetworks.bridge.crypto.AesGcmEncryptor;
 import org.sagebionetworks.bridge.crypto.Encryptor;
 import org.sagebionetworks.bridge.json.BridgeObjectMapper;
 import org.sagebionetworks.bridge.models.BridgeEntity;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonFilter;
@@ -59,6 +60,7 @@ public final class StudyParticipant implements BridgeEntity {
     private final Phone phone;
     private final Boolean emailVerified;
     private final Boolean phoneVerified;
+    private final Enrollment enrollment;
     private final String externalId;
     private final String synapseUserId;
     private final String password;
@@ -81,11 +83,12 @@ public final class StudyParticipant implements BridgeEntity {
     private final String orgMembership;
     
     private StudyParticipant(String firstName, String lastName, String email, Phone phone, Boolean emailVerified,
-            Boolean phoneVerified, String externalId, String synapseUserId, String password, SharingScope sharingScope,
-            Boolean notifyByEmail, Set<String> dataGroups, String healthCode, Map<String, String> attributes,
-            Map<String, List<UserConsentHistory>> consentHistories, Boolean consented, Set<Roles> roles,
-            List<String> languages, AccountStatus status, DateTime createdOn, String id, DateTimeZone timeZone,
-            JsonNode clientData, Set<String> studyIds, Map<String, String> externalIds, String orgId) {
+            Boolean phoneVerified, Enrollment enrollment, String externalId, String synapseUserId, String password,
+            SharingScope sharingScope, Boolean notifyByEmail, Set<String> dataGroups, String healthCode,
+            Map<String, String> attributes, Map<String, List<UserConsentHistory>> consentHistories, Boolean consented,
+            Set<Roles> roles, List<String> languages, AccountStatus status, DateTime createdOn, String id,
+            DateTimeZone timeZone, JsonNode clientData, Set<String> studyIds, Map<String, String> externalIds,
+            String orgId) {
         
         ImmutableMap.Builder<String, List<UserConsentHistory>> immutableConsentsBuilder = new ImmutableMap.Builder<>();
         if (consentHistories != null) {
@@ -103,6 +106,7 @@ public final class StudyParticipant implements BridgeEntity {
         this.phone = phone;
         this.emailVerified = emailVerified;
         this.phoneVerified = phoneVerified;
+        this.enrollment = enrollment;
         this.externalId = externalId;
         this.synapseUserId = synapseUserId;
         this.password = password;
@@ -142,6 +146,9 @@ public final class StudyParticipant implements BridgeEntity {
     }
     public Boolean getPhoneVerified() {
         return phoneVerified;
+    }
+    public Enrollment getEnrollment() {
+        return enrollment;
     }
     public String getExternalId() {
         // For backwards compatibility since we are no longer loading this in HibernateAccountDao,
@@ -224,8 +231,9 @@ public final class StudyParticipant implements BridgeEntity {
     @Override
     public int hashCode() {
         return Objects.hash(attributes, consentHistories, consented, createdOn, dataGroups, email, phone, emailVerified,
-                phoneVerified, externalId, synapseUserId, firstName, healthCode, id, languages, lastName, notifyByEmail,
-                password, roles, sharingScope, status, timeZone, clientData, studyIds, externalIds, orgMembership);
+                phoneVerified, enrollment, externalId, synapseUserId, firstName, healthCode, id, languages, lastName,
+                notifyByEmail, password, roles, sharingScope, status, timeZone, clientData, studyIds, externalIds,
+                orgMembership);
     }
 
     @Override
@@ -240,6 +248,7 @@ public final class StudyParticipant implements BridgeEntity {
                 && Objects.equals(createdOn, other.createdOn) && Objects.equals(dataGroups, other.dataGroups)
                 && Objects.equals(email, other.email) && Objects.equals(phone, other.phone)
                 && Objects.equals(emailVerified, other.emailVerified) && Objects.equals(phoneVerified, other.phoneVerified)
+                && Objects.equals(enrollment, other.enrollment)
                 && Objects.equals(externalId, other.externalId)
                 && Objects.equals(synapseUserId, other.synapseUserId)
                 && Objects.equals(firstName, other.firstName) && Objects.equals(healthCode, other.healthCode)
@@ -261,6 +270,7 @@ public final class StudyParticipant implements BridgeEntity {
         private Phone phone;
         private Boolean emailVerified;
         private Boolean phoneVerified;
+        private Enrollment enrollment;
         private String externalId;
         private String synapseUserId;
         private String password;
@@ -289,6 +299,7 @@ public final class StudyParticipant implements BridgeEntity {
             this.phone = participant.getPhone();
             this.emailVerified = participant.getEmailVerified();
             this.phoneVerified = participant.getPhoneVerified();
+            this.enrollment = participant.getEnrollment();
             this.externalId = participant.getExternalId();
             this.synapseUserId = participant.getSynapseUserId();
             this.password = participant.getPassword();
@@ -329,6 +340,9 @@ public final class StudyParticipant implements BridgeEntity {
             }
             if (fieldNames.contains("phoneVerified")) {
                 withPhoneVerified(participant.getPhoneVerified());
+            }
+            if (fieldNames.contains("enrollment")) {
+                withEnrollment(participant.getEnrollment());
             }
             if (fieldNames.contains("externalId")) {
                 withExternalId(participant.getExternalId());    
@@ -414,6 +428,10 @@ public final class StudyParticipant implements BridgeEntity {
         }
         public Builder withPhoneVerified(Boolean phoneVerified) {
             this.phoneVerified = phoneVerified;
+            return this;
+        }
+        public Builder withEnrollment(Enrollment enrollment) {
+            this.enrollment = enrollment;
             return this;
         }
         public Builder withExternalId(String externalId) {
@@ -524,10 +542,10 @@ public final class StudyParticipant implements BridgeEntity {
             if (languages != null) {
                 languages = ImmutableList.copyOf(Sets.newLinkedHashSet(languages));
             }
-            return new StudyParticipant(firstName, lastName, email, phone, emailVerified, phoneVerified, externalId,
-                    synapseUserId, password, sharingScope, notifyByEmail, dataGroups, healthCode, attributes,
-                    consentHistories, consented, roles, languages, status, createdOn, id, timeZone, clientData,
-                    studyIds, externalIds, orgMembership);
+            return new StudyParticipant(firstName, lastName, email, phone, emailVerified, phoneVerified, enrollment,
+                    externalId, synapseUserId, password, sharingScope, notifyByEmail, dataGroups, healthCode,
+                    attributes, consentHistories, consented, roles, languages, status, createdOn, id, timeZone,
+                    clientData, studyIds, externalIds, orgMembership);
         }
     }
 

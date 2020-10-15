@@ -30,7 +30,6 @@ public final class HibernateEnrollment implements Enrollment {
     private String appId;
     @Id
     @Column(name = "substudyId")
-    @JsonIgnore
     private String studyId;
     @Id
     @JoinColumn(name = "account_id")

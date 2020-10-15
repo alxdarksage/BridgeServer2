@@ -2,6 +2,7 @@ package org.sagebionetworks.bridge.validators;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.sagebionetworks.bridge.Roles.ADMIN;
 
 import java.util.Optional;
 import java.util.Set;
@@ -12,29 +13,30 @@ import org.springframework.validation.Validator;
 
 import org.sagebionetworks.bridge.AuthUtils;
 import org.sagebionetworks.bridge.BridgeUtils;
-import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
+import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.models.accounts.Phone;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.apps.App;
 import org.sagebionetworks.bridge.models.apps.PasswordPolicy;
 import org.sagebionetworks.bridge.models.organizations.Organization;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 import org.sagebionetworks.bridge.models.studies.Study;
-import org.sagebionetworks.bridge.services.ExternalIdService;
 import org.sagebionetworks.bridge.services.OrganizationService;
 import org.sagebionetworks.bridge.services.StudyService;
 
 public class StudyParticipantValidator implements Validator {
+    
+    static final String ENROLLMENT_REQ_FOR_STUDIES = "must now be replaced with an Enrollment containing an external ID and study ID, or an organizational membership";
+    static final String ENROLLMENT_REQ_FOR_EXTID = "must now be replaced with an Enrollment containing an external ID and study ID";
 
     private static final EmailValidator EMAIL_VALIDATOR = EmailValidator.getInstance();
-    private final ExternalIdService externalIdService;
     private final StudyService studyService;
     private final OrganizationService organizationService;
     private final App app;
     private final boolean isNew;
     
-    public StudyParticipantValidator(ExternalIdService externalIdService, StudyService studyService,
-            OrganizationService organizationService, App app, boolean isNew) {
-        this.externalIdService = externalIdService;
+    public StudyParticipantValidator(StudyService studyService, OrganizationService organizationService, App app,
+            boolean isNew) {
         this.studyService = studyService;
         this.organizationService = organizationService;
         this.app = app;
@@ -50,13 +52,20 @@ public class StudyParticipantValidator implements Validator {
     public void validate(Object object, Errors errors) {
         StudyParticipant participant = (StudyParticipant)object;
         
+        if (!participant.getStudyIds().isEmpty()) {
+            errors.rejectValue("studyIds", ENROLLMENT_REQ_FOR_STUDIES);
+        }
+        if (isNotBlank(participant.getExternalId())) {
+            errors.rejectValue("externalId", ENROLLMENT_REQ_FOR_EXTID);
+        }
+        
         if (isNew) {
             Phone phone = participant.getPhone();
             String email = participant.getEmail();
-            String externalId = participant.getExternalId();
             String synapseUserId = participant.getSynapseUserId();
-            if (email == null && isBlank(externalId) && phone == null && isBlank(synapseUserId)) {
-                errors.reject("email, phone, synapseUserId or externalId is required");
+            Enrollment enrollment = participant.getEnrollment();
+            if (email == null && enrollment == null && phone == null && isBlank(synapseUserId)) {
+                errors.reject("email, phone, synapseUserId or an enrollment is required");
             }
             // If provided, phone must be valid
             if (phone != null && !Phone.isValid(phone)) {
@@ -66,10 +75,6 @@ public class StudyParticipantValidator implements Validator {
             if (email != null && !EMAIL_VALIDATOR.isValid(email)) {
                 errors.rejectValue("email", "does not appear to be an email address");
             }
-            // External ID is required for non-administrative accounts when it is required on sign-up.
-            if (participant.getRoles().isEmpty() && app.isExternalIdRequiredOnSignup() && isBlank(participant.getExternalId())) {
-                errors.rejectValue("externalId", "is required");
-            }
             // Password is optional, but validation is applied if supplied, any time it is 
             // supplied (such as in the password reset workflow).
             String password = participant.getPassword();
@@ -77,6 +82,30 @@ public class StudyParticipantValidator implements Validator {
                 PasswordPolicy passwordPolicy = app.getPasswordPolicy();
                 ValidatorUtils.validatePassword(errors, passwordPolicy, password);
             }
+            
+            // After account creation, organizational membership cannot be changed by updating an account
+            // Instead, use the EnrollmentService
+            if (enrollment != null) {
+                Set<String> orgStudies = RequestContext.get().getOrgSponsoredStudies();
+                boolean isAdmin = RequestContext.get().isInRole(ADMIN);
+                
+                errors.pushNestedPath("enrollment");
+                if (isBlank(enrollment.getStudyId())) {
+                    errors.rejectValue("studyId", "cannot be blank");
+                } else if (!isAdmin && !orgStudies.contains(enrollment.getStudyId())) {
+                    errors.rejectValue("studyId", "is not a study of the caller");
+                } else {
+                    Study study = studyService.getStudy(app.getIdentifier(), enrollment.getStudyId(), false);
+                    if (study == null) {
+                        errors.rejectValue("studyId", "is not a study");
+                    }
+                }
+                if (enrollment.getExternalId() != null && isBlank(enrollment.getExternalId())) {
+                    errors.rejectValue("externalId", "cannot be blank");
+                }
+                errors.popNestedPath();
+            }
+
             
             // After account creation, organizational membership cannot be changed by updating an account
             // Instead, use the OrganizationService
@@ -94,27 +123,6 @@ public class StudyParticipantValidator implements Validator {
             if (isBlank(participant.getId())) {
                 errors.rejectValue("id", "is required");
             }
-        }
-
-        for (String studyId : participant.getStudyIds()) {
-            Study study = studyService.getStudy(app.getIdentifier(), studyId, false);
-            if (study == null) {
-                errors.rejectValue("studyIds["+studyId+"]", "is not a study");
-            }
-        }
-        
-        // External ID can be updated during creation or on update. If it's already assigned to another user, 
-        // the database constraints will prevent this record's persistence.
-        if (isNotBlank(participant.getExternalId())) {
-            Optional<ExternalIdentifier> optionalId = externalIdService.getExternalId(app.getIdentifier(),
-                    participant.getExternalId());
-            if (!optionalId.isPresent()) {
-                errors.rejectValue("externalId", "is not a valid external ID");
-            }
-        }
-        // Never okay to have a blank external ID. It can produce errors later when querying for ext IDs
-        if (participant.getExternalId() != null && isBlank(participant.getExternalId())) {
-            errors.rejectValue("externalId", "cannot be blank");
         }
         
         if (participant.getSynapseUserId() != null && isBlank(participant.getSynapseUserId())) {
