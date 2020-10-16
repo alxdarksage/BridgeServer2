@@ -1,23 +1,17 @@
 package org.sagebionetworks.bridge.services;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 
 import java.util.Optional;
 import java.util.Set;
 
-import org.sagebionetworks.bridge.BridgeConstants;
-import org.sagebionetworks.bridge.BridgeUtils;
 import org.sagebionetworks.bridge.RequestContext;
-import org.sagebionetworks.bridge.dao.ExternalIdDao;
-import org.sagebionetworks.bridge.exceptions.BadRequestException;
-import org.sagebionetworks.bridge.exceptions.EntityAlreadyExistsException;
-import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
-import org.sagebionetworks.bridge.models.ForwardCursorPagedResourceList;
 import org.sagebionetworks.bridge.models.accounts.Account;
+import org.sagebionetworks.bridge.models.accounts.AccountId;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
-import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
+import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.apps.App;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 import org.sagebionetworks.bridge.validators.ExternalIdValidator;
 import org.sagebionetworks.bridge.validators.Validate;
 
@@ -36,15 +30,27 @@ import com.google.common.collect.Iterables;
 @Component
 public class ExternalIdService {
     
-    static final String PAGE_SIZE_ERROR = "pageSize must be from 1-"+API_MAXIMUM_PAGE_SIZE+" records";
+    private AppService appService;
     
-    private ExternalIdDao externalIdDao;
+    private AccountService accountService;
+    
+    private ParticipantService participantService;
     
     private StudyService studyService;
 
     @Autowired
-    public final void setExternalIdDao(ExternalIdDao externalIdDao) {
-        this.externalIdDao = externalIdDao;
+    public final void setAppService(AppService appService) {
+        this.appService = appService;
+    }
+    
+    @Autowired
+    public final void setAccountService(AccountService accountService) {
+        this.accountService = accountService;
+    }
+    
+    @Autowired
+    public final void setParticipantService(ParticipantService participantService) {
+        this.participantService = participantService;
     }
     
     @Autowired
@@ -55,26 +61,21 @@ public class ExternalIdService {
     public Optional<ExternalIdentifier> getExternalId(String appId, String externalId) {
         checkNotNull(appId);
         
-        if (StringUtils.isBlank(externalId)) {
-            return Optional.empty();
+        ExternalIdentifier id = ExternalIdentifier.create(appId, externalId);
+        if (!StringUtils.isBlank(externalId)) {
+            AccountId accountId = AccountId.forExternalId(appId, externalId);
+            Account account = accountService.getAccount(accountId);
+            if (account != null) {
+                id.setHealthCode(account.getHealthCode());
+                for (Enrollment en : account.getEnrollments()) {
+                    if (en.getExternalId().equals(externalId)) {
+                        id.setStudyId(en.getStudyId());
+                        return Optional.of(id);         
+                    }
+                }
+            }
         }
-        return externalIdDao.getExternalId(appId, externalId);
-    }
-    
-    public ForwardCursorPagedResourceList<ExternalIdentifierInfo> getExternalIds(
-            String offsetKey, Integer pageSize, String idFilter, Boolean assignmentFilter) {
-        
-        if (pageSize == null) {
-            pageSize = BridgeConstants.API_DEFAULT_PAGE_SIZE;
-        }
-        // Unlike other APIs that only accept API_MINIMUM_PAGE_SIZE, we have client use cases 
-        // where we just want to retrieve one external ID.
-        if (pageSize < 1 || pageSize > API_MAXIMUM_PAGE_SIZE) {
-            throw new BadRequestException(PAGE_SIZE_ERROR);
-        }
-
-        String appId = RequestContext.get().getCallerAppId();
-        return externalIdDao.getExternalIds(appId, offsetKey, pageSize, idFilter, assignmentFilter);
+        return Optional.empty();
     }
     
     public void createExternalId(ExternalIdentifier externalId, boolean isV3) {
@@ -92,38 +93,42 @@ public class ExternalIdService {
         
         ExternalIdValidator validator = new ExternalIdValidator(studyService, isV3);
         Validate.entityThrowingException(validator, externalId);
+
+        Enrollment en = Enrollment.create(externalId.getStudyId(), externalId.getIdentifier());
+        StudyParticipant participant = new StudyParticipant.Builder()
+                .withEnrollment(en)
+                .build();
         
-        // Note that this external ID must be unique across the whole app, not just a study, or else
-        // it cannot be used to identify the study, and that's a significant purpose behind the 
-        // association of the two
-        if (externalIdDao.getExternalId(appId, externalId.getIdentifier()).isPresent()) {
-            throw new EntityAlreadyExistsException(ExternalIdentifier.class, "identifier", externalId.getIdentifier());
-        }
-        externalIdDao.createExternalId(externalId);
+        App app = appService.getApp(appId);
+        participantService.createParticipant(app, participant, false);
     }
     
+    /**
+     * This will delete the enrollment the external ID references (to simply remove
+     * the external ID, use unassignExternalId).
+     */
     public void deleteExternalIdPermanently(App app, ExternalIdentifier externalId) {
         checkNotNull(app);
         checkNotNull(externalId);
         
-        ExternalIdentifier existing = externalIdDao.getExternalId(app.getIdentifier(), externalId.getIdentifier())
-                .orElseThrow(() -> new EntityNotFoundException(ExternalIdentifier.class));
-        if (BridgeUtils.filterForStudy(existing) == null) {
-            throw new EntityNotFoundException(ExternalIdentifier.class);
-        }
-        externalIdDao.deleteExternalId(externalId);
-    }
-    
-    /**
-     * There is a substantial amount of set-up that must occur before this call can be 
-     * made, and the associated account record must be updated as well. See 
-     * ParticipantService.beginAssignExternalId() which performs this setup, and is 
-     * always called before the participant service calls this method. This method is 
-     * not simply a method to update an external ID record.
-     */
-    public void commitAssignExternalId(ExternalIdentifier externalId) {
-        if (externalId != null) {
-            externalIdDao.commitAssignExternalId(externalId);    
+        AccountId accountId = AccountId.forExternalId(app.getIdentifier(), externalId.getIdentifier());
+        Account account = accountService.getAccount(accountId);
+        if (account != null) {
+            Enrollment found = null;
+            for (Enrollment en : account.getEnrollments()) {
+                if (en.getExternalId().equals(externalId.getIdentifier())) {
+                    found = en;
+                    break;
+                }
+            }
+            if (found != null) {
+                account.getEnrollments().remove(found);
+            }
+            if (account.getEnrollments().isEmpty()) {
+                accountService.deleteAccount(accountId);
+            } else {
+                accountService.updateAccount(account, null);
+            }
         }
     }
     
@@ -132,9 +137,14 @@ public class ExternalIdService {
         checkNotNull(account.getAppId());
         checkNotNull(account.getHealthCode());
         
-        if (externalId != null) {
-            externalIdDao.unassignExternalId(account, externalId);
+        if (account != null) {
+            for (Enrollment en : account.getEnrollments()) {
+                if (en.getExternalId().equals(externalId)) {
+                    en.setExternalId(null);
+                    break;
+                }
+            }
+            accountService.updateAccount(account, null);
         }
     }
-    
 }

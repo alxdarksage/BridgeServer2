@@ -2,8 +2,14 @@ package org.sagebionetworks.bridge.services;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Boolean.TRUE;
+import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
+import static org.sagebionetworks.bridge.BridgeConstants.API_MINIMUM_PAGE_SIZE;
+import static org.sagebionetworks.bridge.BridgeConstants.NEGATIVE_OFFSET_ERROR;
 import static org.sagebionetworks.bridge.BridgeUtils.filterForStudy;
 import static org.sagebionetworks.bridge.dao.AccountDao.MIGRATION_VERSION;
+import static org.sagebionetworks.bridge.models.ResourceList.ID_FILTER;
+import static org.sagebionetworks.bridge.models.ResourceList.OFFSET_BY;
+import static org.sagebionetworks.bridge.models.ResourceList.PAGE_SIZE;
 import static org.sagebionetworks.bridge.models.accounts.AccountSecretType.REAUTH;
 import static org.sagebionetworks.bridge.models.accounts.AccountStatus.DISABLED;
 import static org.sagebionetworks.bridge.models.accounts.AccountStatus.ENABLED;
@@ -39,6 +45,7 @@ import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.accounts.Account;
 import org.sagebionetworks.bridge.models.accounts.AccountId;
 import org.sagebionetworks.bridge.models.accounts.AccountSummary;
+import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
 import org.sagebionetworks.bridge.models.accounts.PasswordAlgorithm;
 import org.sagebionetworks.bridge.models.accounts.SignIn;
 import org.sagebionetworks.bridge.models.apps.App;
@@ -48,7 +55,8 @@ import org.sagebionetworks.bridge.time.DateUtils;
 @Component
 public class AccountService {
     private static final Logger LOG = LoggerFactory.getLogger(AccountService.class);
-
+    
+    static final String PAGE_SIZE_ERROR = "pageSize must be from 1-"+API_MAXIMUM_PAGE_SIZE+" records";
     static final int ROTATIONS = 3;
     
     private AccountDao accountDao;
@@ -314,6 +322,20 @@ public class AccountService {
         } else {
             return null;
         }
+    }
+    
+    public PagedResourceList<ExternalIdentifierInfo> getAccountSummariesWithExternalIds(String appId, String idFilter,
+            Integer offsetBy, Integer pageSize) {
+        if (offsetBy != null && offsetBy < 0) {
+            throw new BadRequestException(NEGATIVE_OFFSET_ERROR);
+        }
+        if (pageSize != null && (pageSize < API_MINIMUM_PAGE_SIZE || pageSize > API_MAXIMUM_PAGE_SIZE)) {
+            throw new BadRequestException(PAGE_SIZE_ERROR);
+        }
+        return accountDao.getAccountSummariesWithExternalIds(appId, idFilter, offsetBy, pageSize)
+                .withRequestParam(ID_FILTER, idFilter)
+                .withRequestParam(OFFSET_BY, offsetBy)
+                .withRequestParam(PAGE_SIZE, pageSize);
     }
     
     protected Account authenticateInternal(App app, Account account, SignIn signIn) {

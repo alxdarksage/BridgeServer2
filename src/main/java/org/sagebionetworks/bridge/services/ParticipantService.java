@@ -115,6 +115,8 @@ public class ParticipantService {
     
     private OrganizationService organizationService;
 
+    private EnrollmentService enrollmentService;
+    
     @Autowired
     public final void setAccountWorkflowService(AccountWorkflowService accountWorkflowService) {
         this.accountWorkflowService = accountWorkflowService;
@@ -184,6 +186,11 @@ public class ParticipantService {
     @Autowired
     final void setOrganizationService(OrganizationService organizationService) {
         this.organizationService = organizationService;
+    }
+    
+    @Autowired
+    final void setEnrollmentService(EnrollmentService enrollmentService) { 
+        this.enrollmentService = enrollmentService;
     }
     
     /**
@@ -543,18 +550,9 @@ public class ParticipantService {
         // Only allow enrollment into a study on the creation of an account. 
         Enrollment en = participant.getEnrollment();
         if (isNew && en != null) {
-            // Copy to prevent concurrent modification exceptions
-            Set<Enrollment> enrollments = ImmutableSet.copyOf(account.getEnrollments());
-            
-            // Remove enrollment if it's being changed
-            for (Enrollment enrollment : enrollments) {
-                if (en.getStudyId().equals(enrollment.getStudyId())) {
-                    account.getEnrollments().remove(enrollment);
-                }
-            }
-            // Add study relationship
-            Enrollment enrollment = Enrollment.create(account.getAppId(), en.getStudyId(), account.getId(), en.getExternalId());
-            account.getEnrollments().add(enrollment);
+            Enrollment enrollment = Enrollment.create(account.getAppId(), 
+                    en.getStudyId(), account.getId(), en.getExternalId());
+            enrollmentService.enroll(account, enrollment);
             RequestContext.updateFromEnrollment(enrollment);
         }
         

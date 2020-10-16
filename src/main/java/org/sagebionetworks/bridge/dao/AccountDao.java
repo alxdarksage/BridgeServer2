@@ -9,6 +9,7 @@ import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.accounts.Account;
 import org.sagebionetworks.bridge.models.accounts.AccountId;
 import org.sagebionetworks.bridge.models.accounts.AccountSummary;
+import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
 import org.sagebionetworks.bridge.models.apps.App;
 
 /**
@@ -61,4 +62,11 @@ public interface AccountDao {
      *      paging parameters.
      */
     PagedResourceList<AccountSummary> getPagedAccountSummaries(String appId, AccountSummarySearch search);
+    
+    /**
+     * Get a list of accounts that are associated to one or more external ids (if an account is associated
+     * to multiple external IDs, it will appear in this list more than once).
+     */
+    PagedResourceList<ExternalIdentifierInfo> getAccountSummariesWithExternalIds(String appId, String idFilter,
+            Integer offsetBy, Integer pageSize);
 }    

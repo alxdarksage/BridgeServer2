@@ -177,28 +177,10 @@ public class StudyParticipantValidatorTest {
     }
     
     @Test
-    public void externalIdIsInvalidOnUpdate() {
-        validator = makeValidator(false);
-        StudyParticipant participant = new StudyParticipant.Builder()
-                .withExternalId("external-id").build();
-        
-        assertValidatorMessage(validator, participant, "externalId", ENROLLMENT_REQ_FOR_EXTID);
-    }
-    
-    @Test
     public void studyIdsIsInvalidOnCreate() {
         validator = makeValidator(true);
         StudyParticipant participant = new StudyParticipant.Builder()
                 .withStudyIds(ImmutableSet.of("A", "B")).build();
-        
-        assertValidatorMessage(validator, participant, "studyIds", ENROLLMENT_REQ_FOR_STUDIES);
-    }
-    
-    @Test
-    public void studyIdsIsInvalidOnUpdate() {
-        validator = makeValidator(false);
-        StudyParticipant participant = new StudyParticipant.Builder()
-                .withStudyIds(ImmutableSet.of("A")).build();
         
         assertValidatorMessage(validator, participant, "studyIds", ENROLLMENT_REQ_FOR_STUDIES);
     }

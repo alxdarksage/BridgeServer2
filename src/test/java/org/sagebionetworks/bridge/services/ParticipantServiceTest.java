@@ -173,6 +173,9 @@ public class ParticipantServiceTest extends Mockito {
     private ParticipantService participantService;
     
     @Mock
+    private EnrollmentService enrollmentService;
+    
+    @Mock
     private AccountService accountService;
     
     @Mock
@@ -234,6 +237,9 @@ public class ParticipantServiceTest extends Mockito {
 
     @Captor
     ArgumentCaptor<SmsMessageProvider> providerCaptor;
+    
+    @Captor
+    ArgumentCaptor<Enrollment> enrollmentCaptor;
     
     private Account account;
     
@@ -347,8 +353,15 @@ public class ParticipantServiceTest extends Mockito {
         assertNull(account.getTimeZone());
         assertEquals(account.getDataGroups(), ImmutableSet.of("group1","group2"));
         assertEquals(account.getLanguages(), ImmutableList.of("de","fr"));
-        assertEquals(Iterables.getFirst(account.getEnrollments(), null).getExternalId(), EXTERNAL_ID);
         assertEquals(account.getSynapseUserId(), SYNAPSE_USER_ID);
+        
+        verify(enrollmentService).enroll(eq(account), enrollmentCaptor.capture());
+        
+        Enrollment en = enrollmentCaptor.getValue();
+        assertEquals(en.getAccountId(), ID);
+        assertEquals(en.getStudyId(), STUDY_ID);
+        assertEquals(en.getAppId(), TEST_APP_ID);
+        assertEquals(en.getExternalId(), EXTERNAL_ID);
         
         // don't update cache
         Mockito.verifyNoMoreInteractions(cacheProvider);
@@ -1928,15 +1941,6 @@ public class ParticipantServiceTest extends Mockito {
         participantService.createParticipant(APP, participant, false);
     }
 
-    @Test(expectedExceptions = InvalidEntityException.class)
-    public void updateMissingManagedExternalIdFails() {
-        // In this case the ID is not in the external IDs table, so it fails validation.
-        mockHealthCodeAndAccountRetrieval();
-        
-        StudyParticipant participant = withParticipant().withExternalId("newExternalId").build();
-        participantService.updateParticipant(APP, participant);
-    }
-    
     private StudyParticipant.Builder withParticipant() {
         return new StudyParticipant.Builder().copyOf(PARTICIPANT);
     }
@@ -2025,12 +2029,12 @@ public class ParticipantServiceTest extends Mockito {
                 .withEnrollment(Enrollment.create(STUDY_ID, EXTERNAL_ID)).build();
         participantService.createParticipant(APP, participant, false);
         
-        verify(accountService).createAccount(eq(APP), accountCaptor.capture(), any());
+        verify(accountService).createAccount(eq(APP), accountCaptor.capture(), eq(null));
+        verify(enrollmentService).enroll(accountCaptor.capture(), enrollmentCaptor.capture());
         
-        Account captured = accountCaptor.getValue();
-        assertEquals(captured.getEnrollments().size(), 1);
-        
-        Enrollment enrollment = Iterables.getFirst(captured.getEnrollments(), null);
+        assertEquals(accountCaptor.getAllValues().get(0), accountCaptor.getAllValues().get(1));
+
+        Enrollment enrollment = enrollmentCaptor.getValue();
         assertEquals(enrollment.getAppId(), TEST_APP_ID);
         assertEquals(enrollment.getStudyId(), STUDY_ID);
         assertEquals(enrollment.getExternalId(), EXTERNAL_ID);
@@ -2049,11 +2053,11 @@ public class ParticipantServiceTest extends Mockito {
         participantService.createParticipant(APP, participant, false);
         
         verify(accountService).createAccount(eq(APP), accountCaptor.capture(), any());
+        verify(enrollmentService).enroll(accountCaptor.capture(), enrollmentCaptor.capture());
         
-        Account captured = accountCaptor.getValue();
-        assertEquals(captured.getEnrollments().size(), 1);
+        assertEquals(accountCaptor.getAllValues().get(0), accountCaptor.getAllValues().get(1));
         
-        Enrollment enrollment = Iterables.getFirst(captured.getEnrollments(), null);
+        Enrollment enrollment = enrollmentCaptor.getValue();
         assertEquals(enrollment.getAppId(), TEST_APP_ID);
         assertEquals(enrollment.getStudyId(), STUDY_ID);
         assertEquals(enrollment.getExternalId(), EXTERNAL_ID);
@@ -2103,11 +2107,9 @@ public class ParticipantServiceTest extends Mockito {
         participantService.createParticipant(APP, participant, false);
         
         verify(accountService).createAccount(eq(APP), accountCaptor.capture(), any());
+        verify(enrollmentService).enroll(any(), enrollmentCaptor.capture());
         
-        Account captured = accountCaptor.getValue();
-        assertEquals(captured.getEnrollments().size(), 1);
-        
-        Enrollment enrollment = Iterables.getFirst(captured.getEnrollments(), null);
+        Enrollment enrollment = enrollmentCaptor.getValue();
         assertEquals(enrollment.getAppId(), TEST_APP_ID);
         assertEquals(enrollment.getStudyId(), STUDY_ID);
         assertEquals(enrollment.getExternalId(), EXTERNAL_ID);

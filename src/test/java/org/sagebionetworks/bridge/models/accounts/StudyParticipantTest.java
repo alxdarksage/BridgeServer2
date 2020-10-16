@@ -120,7 +120,6 @@ public class StudyParticipantTest {
         assertEquals(node.size(), 28);
         
         ObjectNode enrollmentNode = (ObjectNode)node.get("enrollment");
-        System.out.println(enrollmentNode);
         assertEquals(enrollmentNode.get("studyId").textValue(), TEST_STUDY_ID);
         assertEquals(enrollmentNode.get("userId").textValue(), ACCOUNT_ID);
         assertEquals(enrollmentNode.get("externalId").textValue(), "externalId");

@@ -11,6 +11,7 @@ import org.sagebionetworks.bridge.exceptions.ConstraintViolationException;
 import org.sagebionetworks.bridge.exceptions.EntityAlreadyExistsException;
 import org.sagebionetworks.bridge.models.accounts.Account;
 import org.sagebionetworks.bridge.models.accounts.AccountId;
+import org.sagebionetworks.bridge.models.studies.Enrollment;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 
 @Component
 public class AccountPersistenceExceptionConverter implements PersistenceExceptionConverter {
@@ -54,6 +56,7 @@ public class AccountPersistenceExceptionConverter implements PersistenceExceptio
             // The specific error message is buried in the root MySQLIntegrityConstraintViolationException
             Throwable cause = Throwables.getRootCause(exception);
             String message = cause.getMessage();
+            System.out.println("MESSAGE: " + message);
             if (message != null && entity != null) {
                 HibernateAccount account = (HibernateAccount)entity;
                 // These are the constraint violation messages. To ensure we don't log credentials, we look
@@ -84,6 +87,12 @@ public class AccountPersistenceExceptionConverter implements PersistenceExceptio
                 } else if (message.matches("Duplicate entry.*for key 'Accounts-StudyId-SynapseUserId-Index'")) {
                     eae = createEntityAlreadyExistsException("Synapse User ID",
                             AccountId.forSynapseUserId(account.getAppId(), account.getSynapseUserId()));
+                } else if (message.matches("Duplicate entry.*for key 'unique_extId'")) {
+                    Enrollment en = Iterables.getFirst(account.getEnrollments(), null);
+                    if (en != null) {
+                        eae = createEntityAlreadyExistsException("External ID", 
+                                AccountId.forExternalId(account.getAppId(), en.getExternalId()));
+                    }
                 }
                 if (eae != null) {
                     return eae;

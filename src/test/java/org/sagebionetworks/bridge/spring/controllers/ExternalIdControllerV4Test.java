@@ -1,6 +1,5 @@
 package org.sagebionetworks.bridge.spring.controllers;
 
-import static java.lang.Boolean.TRUE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.DEVELOPER;
@@ -33,7 +32,7 @@ import org.testng.annotations.Test;
 
 import org.sagebionetworks.bridge.config.BridgeConfig;
 import org.sagebionetworks.bridge.exceptions.NotAuthenticatedException;
-import org.sagebionetworks.bridge.models.ForwardCursorPagedResourceList;
+import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.StatusMessage;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
@@ -42,12 +41,16 @@ import org.sagebionetworks.bridge.models.accounts.UserSession;
 import org.sagebionetworks.bridge.models.apps.App;
 import org.sagebionetworks.bridge.services.AuthenticationService;
 import org.sagebionetworks.bridge.services.ExternalIdService;
+import org.sagebionetworks.bridge.services.AccountService;
 import org.sagebionetworks.bridge.services.AppService;
 
 public class ExternalIdControllerV4Test extends Mockito {
 
     @Mock
-    ExternalIdService mockService;
+    ExternalIdService mockExtIdService;
+    
+    @Mock
+    AccountService mockAccountService;
 
     @Mock
     AppService mockAppService;
@@ -67,7 +70,7 @@ public class ExternalIdControllerV4Test extends Mockito {
     @Captor
     ArgumentCaptor<ExternalIdentifier> externalIdCaptor;
 
-    ForwardCursorPagedResourceList<ExternalIdentifierInfo> list;
+    PagedResourceList<ExternalIdentifierInfo> list;
 
     App app;
 
@@ -83,7 +86,7 @@ public class ExternalIdControllerV4Test extends Mockito {
 
         List<ExternalIdentifierInfo> items = ImmutableList.of(new ExternalIdentifierInfo("id1", null, true),
                 new ExternalIdentifierInfo("id2", null, false));
-        list = new ForwardCursorPagedResourceList<>(items, "nextPageOffsetKey");
+        list = new PagedResourceList<>(items, 10);
 
         app = App.create();
         app.setIdentifier(TEST_APP_ID);
@@ -106,26 +109,24 @@ public class ExternalIdControllerV4Test extends Mockito {
     
     @Test
     public void getExternalIdentifiers() throws Exception {
-        when(mockService.getExternalIds("offsetKey", new Integer(49), "idFilter", TRUE)).thenReturn(list);
+        when(mockAccountService.getAccountSummariesWithExternalIds(TEST_APP_ID, "idFilter", 0, 49)).thenReturn(list);
 
-        ForwardCursorPagedResourceList<ExternalIdentifierInfo> result = controller.getExternalIdentifiers("offsetKey",
-                "49", "idFilter", "true");
-
+        PagedResourceList<ExternalIdentifierInfo> result = controller.getExternalIdentifiers("0", null, "49", "idFilter");
         assertEquals(result.getItems().size(), 2);
 
-        verify(mockService).getExternalIds("offsetKey", new Integer(49), "idFilter", TRUE);
+        verify(mockAccountService).getAccountSummariesWithExternalIds(TEST_APP_ID, "idFilter", 0, 49);
     }
 
     @Test
     public void getExternalIdentifiersAllDefaults() throws Exception {
-        when(mockService.getExternalIds(null, API_DEFAULT_PAGE_SIZE, null, null)).thenReturn(list);
-        
-        ForwardCursorPagedResourceList<ExternalIdentifierInfo> results = controller.getExternalIdentifiers(null, null,
-                null, null);
+        when(mockAccountService.getAccountSummariesWithExternalIds(TEST_APP_ID, null, 0, API_DEFAULT_PAGE_SIZE))
+                .thenReturn(list);
+
+        PagedResourceList<ExternalIdentifierInfo> results = controller.getExternalIdentifiers(null, null, null, null);
 
         assertEquals(results.getItems().size(), 2);
 
-        verify(mockService).getExternalIds(null, API_DEFAULT_PAGE_SIZE, null, null);
+        verify(mockAccountService).getAccountSummariesWithExternalIds(TEST_APP_ID, null, 0, API_DEFAULT_PAGE_SIZE);
     }
 
     @Test
@@ -137,7 +138,7 @@ public class ExternalIdControllerV4Test extends Mockito {
         StatusMessage result = controller.createExternalIdentifier();
         assertEquals(result.getMessage(), "External identifier created.");
 
-        verify(mockService).createExternalId(externalIdCaptor.capture(), eq(false));
+        verify(mockExtIdService).createExternalId(externalIdCaptor.capture(), eq(false));
 
         ExternalIdentifier retrievedId = externalIdCaptor.getValue();
         assertEquals(retrievedId.getAppId(), TEST_APP_ID);
@@ -153,14 +154,14 @@ public class ExternalIdControllerV4Test extends Mockito {
         StatusMessage result = controller.deleteExternalIdentifier("externalId");
         assertEquals(result.getMessage(), "External identifier deleted.");
 
-        verify(mockService).deleteExternalIdPermanently(eq(app), externalIdCaptor.capture());
+        verify(mockExtIdService).deleteExternalIdPermanently(eq(app), externalIdCaptor.capture());
         assertEquals(externalIdCaptor.getValue().getIdentifier(), "externalId");
         assertEquals(externalIdCaptor.getValue().getAppId(), TEST_APP_ID);
     }
 
     @Test(expectedExceptions = NotAuthenticatedException.class)
     public void generatePasswordRequiresResearcher() throws Exception {
-        controller.generatePassword("extid", "false");
+        controller.generatePassword("extid");
     }
 
     @Test
@@ -169,13 +170,13 @@ public class ExternalIdControllerV4Test extends Mockito {
 
         doReturn(session).when(controller).getAuthenticatedSession(RESEARCHER);
         GeneratedPassword password = new GeneratedPassword("extid", "user-id", "some-password");
-        when(mockAuthService.generatePassword(app, "extid", false)).thenReturn(password);
+        when(mockAuthService.generatePassword(app, "extid")).thenReturn(password);
 
-        GeneratedPassword result = controller.generatePassword("extid", "false");
+        GeneratedPassword result = controller.generatePassword("extid");
         assertEquals(result.getExternalId(), "extid");
         assertEquals(result.getPassword(), "some-password");
         assertEquals(result.getUserId(), "user-id");
 
-        verify(mockAuthService).generatePassword(eq(app), eq("extid"), eq(false));
+        verify(mockAuthService).generatePassword(eq(app), eq("extid"));
     }
 }

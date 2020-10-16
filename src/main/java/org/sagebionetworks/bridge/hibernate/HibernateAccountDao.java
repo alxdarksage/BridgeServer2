@@ -31,6 +31,7 @@ import org.sagebionetworks.bridge.models.ResourceList;
 import org.sagebionetworks.bridge.models.accounts.Account;
 import org.sagebionetworks.bridge.models.accounts.AccountId;
 import org.sagebionetworks.bridge.models.accounts.AccountSummary;
+import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
 import org.sagebionetworks.bridge.models.apps.App;
 
 /** Hibernate implementation of Account Dao. */
@@ -46,11 +47,18 @@ public class HibernateAccountDao implements AccountDao {
     static final String COUNT_QUERY = "SELECT COUNT(DISTINCT acct.id) FROM HibernateAccount AS acct";
     
     private HibernateHelper hibernateHelper;
+    
+    private HibernateHelper basicHibernateHelper;
 
     /** This makes interfacing with Hibernate easier. */
     @Resource(name = "accountHibernateHelper")
     public final void setHibernateHelper(HibernateHelper hibernateHelper) {
         this.hibernateHelper = hibernateHelper;
+    }
+    
+    @Resource(name = "basicHibernateHelper")
+    public final void setBasicHibernateHelper(HibernateHelper basicHibernateHelper) {
+        this.basicHibernateHelper = basicHibernateHelper;
     }
     
     // Provided to override in tests
@@ -217,6 +225,34 @@ public class HibernateAccountDao implements AccountDao {
                 .withRequestParam(ResourceList.PAGE_SIZE, search.getPageSize())
                 .withRequestParam(ResourceList.PHONE_FILTER, search.getPhoneFilter())
                 .withRequestParam(ResourceList.START_TIME, search.getStartTime());
+    }
+    
+    public PagedResourceList<ExternalIdentifierInfo> getAccountSummariesWithExternalIds(String appId, String idFilter,
+            Integer offsetBy, Integer pageSize) {
+
+        QueryBuilder builder = new QueryBuilder();
+        builder.append("SELECT en from HibernateEnrollment as en");
+        builder.append("WHERE en.appId = :appId and en.externalId IS NOT NULL", "appId", appId);
+        if (StringUtils.isNotBlank(idFilter)) {
+            builder.append("AND en.externalId LIKE :idFilter", "idFilter", idFilter + "%");
+        }
+        
+        List<HibernateEnrollment> enrollments = basicHibernateHelper.queryGet(builder.getQuery(), 
+                builder.getParameters(), offsetBy, pageSize, HibernateEnrollment.class);
+        
+        List<ExternalIdentifierInfo> infos = enrollments.stream()
+                .map(en -> new ExternalIdentifierInfo(en.getExternalId(), en.getStudyId(), true))
+                .collect(Collectors.toList());
+        
+        builder = new QueryBuilder();
+        builder.append("SELECT count(en) from HibernateEnrollment as en");
+        builder.append("WHERE en.appId = :appId and en.externalId IS NOT NULL", "appId", appId);
+        if (StringUtils.isNotBlank(idFilter)) {
+            builder.append("AND en.externalId LIKE :idFilter", "idFilter", idFilter + "%");
+        }
+        int count = hibernateHelper.queryCount(builder.getQuery(), builder.getParameters());
+        
+        return new PagedResourceList<>(infos, count, true);
     }
     
     // Callers of AccountDao assume that an Account will always a health code and health ID. All accounts created

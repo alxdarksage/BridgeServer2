@@ -72,7 +72,6 @@ import org.sagebionetworks.bridge.models.apps.App;
 import org.sagebionetworks.bridge.models.apps.PasswordPolicy;
 import org.sagebionetworks.bridge.models.oauth.OAuthAuthorizationToken;
 import org.sagebionetworks.bridge.models.studies.Enrollment;
-import org.sagebionetworks.bridge.models.accounts.IdentifierHolder;
 import org.sagebionetworks.bridge.models.accounts.PasswordReset;
 import org.sagebionetworks.bridge.models.accounts.GeneratedPassword;
 import org.sagebionetworks.bridge.models.accounts.SignIn;
@@ -178,6 +177,8 @@ public class AuthenticationServiceMockTest {
     private ArgumentCaptor<AccountId> accountIdCaptor;
     @Captor
     private ArgumentCaptor<CriteriaContext> contextCaptor;
+    @Captor
+    private ArgumentCaptor<String> stringCaptor;
     @Spy
     @InjectMocks
     private AuthenticationService service;
@@ -1008,13 +1009,13 @@ public class AuthenticationServiceMockTest {
     
     @Test(expectedExceptions = BadRequestException.class)
     public void generatePasswordExternalIdNotSubmitted() {
-        service.generatePassword(app, null, true);
+        service.generatePassword(app, null);
     }
     
     @Test(expectedExceptions = EntityNotFoundException.class)
     public void generatePasswordExternalIdRecordMissing() {
         when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID)).thenReturn(Optional.empty());
-        service.generatePassword(app, EXTERNAL_ID, false);
+        service.generatePassword(app, EXTERNAL_ID);
     }
     
     @Test(expectedExceptions = EntityNotFoundException.class)
@@ -1023,84 +1024,23 @@ public class AuthenticationServiceMockTest {
         when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
                 .thenReturn(Optional.of(externalIdentifier));
         
-        service.generatePassword(app, EXTERNAL_ID, false);
-    }
-    
-    @Test
-    public void generatePasswordAndAccountOK() {
-        ExternalIdentifier externalIdentifier = ExternalIdentifier.create(app.getIdentifier(), EXTERNAL_ID);
-        doReturn(PASSWORD).when(service).generatePassword(anyInt());
-        when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
-                .thenReturn(Optional.of(externalIdentifier));
-        
-        IdentifierHolder idHolder = new IdentifierHolder("userId");
-        when(participantService.createParticipant(eq(app), participantCaptor.capture(), eq(false))).thenReturn(idHolder);
-        
-        GeneratedPassword password = service.generatePassword(app, EXTERNAL_ID, true);
-        assertEquals(password.getExternalId(), EXTERNAL_ID);
-        assertEquals(password.getPassword(), PASSWORD);
-        
-        StudyParticipant participant = participantCaptor.getValue();
-        assertEquals(participant.getExternalId(), EXTERNAL_ID);
-        assertEquals(participant.getPassword(), PASSWORD);
-    }
-    
-    @Test
-    public void generatePasswordAndAccountWhenExternalIdTaken() {
-        ExternalIdentifier externalIdentifier = ExternalIdentifier.create(app.getIdentifier(), EXTERNAL_ID);
-        externalIdentifier.setHealthCode("someoneElsesHealthCode");
-        when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
-                .thenReturn(Optional.of(externalIdentifier));
-        
-        when(participantService.createParticipant(eq(app), participantCaptor.capture(), eq(false)))
-                        .thenThrow(new EntityAlreadyExistsException(Account.class, "id", "asdf"));
-        
-        try {
-            service.generatePassword(app, EXTERNAL_ID, true);
-            fail("Should have thrown an exception");
-        } catch(EntityAlreadyExistsException e) {
-            // expected exception
-        }
-        verify(accountService).getAccount(AccountId.forExternalId(TEST_APP_ID, EXTERNAL_ID));
-        verify(participantService).createParticipant(eq(app), any(), eq(false));
-        verifyNoMoreInteractions(accountService);
-        verifyNoMoreInteractions(participantService);
-    }
-    
-    
-    @Test
-    public void generatePasswordAndAccountWhenExternalIdMissing() {
-        ExternalIdentifier externalIdentifier = ExternalIdentifier.create(app.getIdentifier(), EXTERNAL_ID);
-        externalIdentifier.setHealthCode("someoneElsesHealthCode");
-        when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
-            .thenReturn(Optional.empty());
-        
-        try {
-            service.generatePassword(app, EXTERNAL_ID, true);
-            fail("Should have thrown an exception");
-        } catch(EntityNotFoundException e) {
-            // expected exception
-        }
-        verify(accountService, never()).getAccount(any());
-        verify(participantService, never()).createParticipant(any(), any(), anyBoolean());
-        verify(accountService, never()).changePassword(any(), any(), any());
+        service.generatePassword(app, EXTERNAL_ID);
     }
     
     @Test
     public void generatePasswordOK() {
-        ExternalIdentifier externalIdentifier = ExternalIdentifier.create(app.getIdentifier(), EXTERNAL_ID);
-        when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
-                .thenReturn(Optional.of(externalIdentifier));
         doReturn(PASSWORD).when(service).generatePassword(anyInt());
         
-        when(accountService.getAccount(any())).thenReturn(account);
-        account.setHealthCode(HEALTH_CODE);
+        AccountId accountId = AccountId.forExternalId(TEST_APP_ID, EXTERNAL_ID);
+        when(accountService.getAccount(accountId)).thenReturn(account);
         
-        GeneratedPassword password = service.generatePassword(app, EXTERNAL_ID, true);
-        assertEquals(password.getExternalId(), EXTERNAL_ID);
+        GeneratedPassword password = service.generatePassword(app, EXTERNAL_ID);
+        
+        verify(accountService).changePassword(eq(account), eq(null), stringCaptor.capture());
         assertEquals(password.getPassword(), PASSWORD);
-        
-        verify(accountService).changePassword(account, null, PASSWORD);
+        assertEquals(password.getUserId(), USER_ID);
+        assertEquals(password.getExternalId(), EXTERNAL_ID);
+        assertEquals(stringCaptor.getValue(), PASSWORD);
     }
     
     @Test
@@ -1112,46 +1052,6 @@ public class AuthenticationServiceMockTest {
         ValidatorUtils.validatePassword(errors, PasswordPolicy.DEFAULT_PASSWORD_POLICY, password);
         assertFalse(errors.hasErrors());
         assertEquals(password.length(), 100);
-    }
-    
-    @Test(expectedExceptions = EntityNotFoundException.class)
-    public void generatePasswordExternalIdMismatchesCallerStudies() {
-        RequestContext.set(
-                new RequestContext.Builder().withCallerEnrolledStudies(ImmutableSet.of("studyB")).build());
-        
-        ExternalIdentifier externalIdentifier = ExternalIdentifier.create(app.getIdentifier(), EXTERNAL_ID);
-        externalIdentifier.setStudyId("studyA");
-        when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
-                .thenReturn(Optional.of(externalIdentifier));
-        
-        account.setEnrollments(ImmutableSet.of(Enrollment.create(app.getIdentifier(), "studyA", "id")));
-        
-        service.generatePassword(app, EXTERNAL_ID, false);
-    }
-    
-    @Test(expectedExceptions = EntityNotFoundException.class)
-    public void generatePasswordAccountMismatchesCallerStudies() {
-        RequestContext.set(new RequestContext.Builder()
-                .withOrgSponsoredStudies(ImmutableSet.of("studyA")).build());
-        
-        ExternalIdentifier externalIdentifier = ExternalIdentifier.create(app.getIdentifier(), EXTERNAL_ID);
-        externalIdentifier.setStudyId("studyA");
-        when(externalIdService.getExternalId(app.getIdentifier(), EXTERNAL_ID))
-                .thenReturn(Optional.of(externalIdentifier));
-        
-        when(accountService.getAccount(any())).thenReturn(account);
-        account.setEnrollments(Sets.newHashSet(Enrollment.create(app.getIdentifier(), "studyB", "id")));
-        
-        service.generatePassword(app, EXTERNAL_ID, false);
-    }
-
-    @Test
-    public void creatingExternalIdOnlyAccountSucceedsIfIdsManaged() {
-        StudyParticipant participant = new StudyParticipant.Builder().copyOf(PARTICIPANT)
-                .withEmail(null).withPhone(null).withExternalId("id").build();
-        service.signUp(app, participant);
-        
-        verify(participantService).createParticipant(app, participant, true);
     }
     
     @Test

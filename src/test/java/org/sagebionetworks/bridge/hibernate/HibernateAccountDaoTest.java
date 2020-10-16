@@ -98,6 +98,9 @@ public class HibernateAccountDaoTest extends Mockito {
     @Mock
     private HibernateHelper mockHibernateHelper;
 
+    @Mock
+    private HibernateHelper mockBasicHibernateHelper;
+    
     private App app;
     
     @InjectMocks
@@ -105,19 +108,12 @@ public class HibernateAccountDaoTest extends Mockito {
     private HibernateAccountDao dao;
 
     @BeforeMethod
-    public void beforeMethod() {
-        MockitoAnnotations.initMocks(this);
-        DateTimeUtils.setCurrentMillisFixed(MOCK_DATETIME.getMillis());
-    }
-
-    @AfterMethod
-    public static void afterMethod() {
-        DateTimeUtils.setCurrentMillisSystem();
-    }
-
-    @BeforeMethod
     public void before() {
         MockitoAnnotations.initMocks(this);
+        DateTimeUtils.setCurrentMillisFixed(MOCK_DATETIME.getMillis());
+        dao.setHibernateHelper(mockHibernateHelper);
+        dao.setBasicHibernateHelper(mockBasicHibernateHelper);
+        
         // Mock successful update.
         when(mockHibernateHelper.update(any(), eq(null))).thenAnswer(invocation -> {
             HibernateAccount account = invocation.getArgument(0);
@@ -126,9 +122,6 @@ public class HibernateAccountDaoTest extends Mockito {
             }
             return account;
         });
-
-        dao = spy(new HibernateAccountDao());
-        dao.setHibernateHelper(mockHibernateHelper);
 
         app = App.create();
         app.setIdentifier(TEST_APP_ID);
@@ -139,6 +132,7 @@ public class HibernateAccountDaoTest extends Mockito {
     @AfterMethod
     public void after() {
         RequestContext.set(null);
+        DateTimeUtils.setCurrentMillisSystem();
     }
 
     @Test
@@ -159,7 +153,7 @@ public class HibernateAccountDaoTest extends Mockito {
         // execute - We generate a new account ID.
         dao.createAccount(app, account, null);
         
-        verify(mockHibernateHelper).create(eq(account), any());
+        verify(mockHibernateHelper).create(account, null);
     }
 
     @Test

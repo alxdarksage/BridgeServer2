@@ -52,14 +52,13 @@ public class StudyParticipantValidator implements Validator {
     public void validate(Object object, Errors errors) {
         StudyParticipant participant = (StudyParticipant)object;
         
-        if (!participant.getStudyIds().isEmpty()) {
-            errors.rejectValue("studyIds", ENROLLMENT_REQ_FOR_STUDIES);
-        }
-        if (isNotBlank(participant.getExternalId())) {
-            errors.rejectValue("externalId", ENROLLMENT_REQ_FOR_EXTID);
-        }
-        
         if (isNew) {
+            if (!participant.getStudyIds().isEmpty()) {
+                errors.rejectValue("studyIds", ENROLLMENT_REQ_FOR_STUDIES);
+            }
+            if (isNotBlank(participant.getExternalId())) {
+                errors.rejectValue("externalId", ENROLLMENT_REQ_FOR_EXTID);
+            }
             Phone phone = participant.getPhone();
             String email = participant.getEmail();
             String synapseUserId = participant.getSynapseUserId();

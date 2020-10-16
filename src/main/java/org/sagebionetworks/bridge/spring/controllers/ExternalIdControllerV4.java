@@ -1,6 +1,5 @@
 package org.sagebionetworks.bridge.spring.controllers;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeUtils.getIntOrDefault;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
@@ -18,7 +17,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import org.sagebionetworks.bridge.models.ForwardCursorPagedResourceList;
+import org.sagebionetworks.bridge.BridgeUtils;
+import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.StatusMessage;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifierInfo;
@@ -38,23 +38,22 @@ public class ExternalIdControllerV4 extends BaseController {
         this.externalIdService = externalIdService;
     }
     
-    private static Boolean getBooleanOrDefault(String value, Boolean defaultValue) {
-        if (isBlank(value)) {
-            return defaultValue;
-        }
-        return "true".equals(value);
-    }
-    
     @GetMapping("/v4/externalids")
-    public ForwardCursorPagedResourceList<ExternalIdentifierInfo> getExternalIdentifiers(
-            @RequestParam(required = false) String offsetKey, @RequestParam(required = false) String pageSize,
-            @RequestParam(required = false) String idFilter, @RequestParam(required = false) String assignmentFilter) {
-        getAuthenticatedSession(DEVELOPER, RESEARCHER);
-
-        Integer pageSizeInt = getIntOrDefault(pageSize, API_DEFAULT_PAGE_SIZE);
-        Boolean assignmentFilterBool = getBooleanOrDefault(assignmentFilter, null);
+    public PagedResourceList<ExternalIdentifierInfo> getExternalIdentifiers(
+            @RequestParam(required = false) String offsetKey, 
+            @RequestParam(required = false) String offsetBy,
+            @RequestParam(required = false) String pageSize,
+            @RequestParam(required = false) String idFilter) {
+        UserSession session = getAuthenticatedSession(DEVELOPER, RESEARCHER);
         
-        return externalIdService.getExternalIds(offsetKey, pageSizeInt, idFilter, assignmentFilterBool);
+        if (offsetBy == null && offsetKey != null) {
+            offsetBy = offsetKey;
+        }
+        int offsetByInt = BridgeUtils.getIntOrDefault(offsetBy, 0);
+        int pageSizeInt = getIntOrDefault(pageSize, API_DEFAULT_PAGE_SIZE);
+        
+        return accountService.getAccountSummariesWithExternalIds(session.getAppId(), idFilter, offsetByInt,
+                pageSizeInt);
     }
 
     @PostMapping("/v4/externalids")
@@ -80,13 +79,10 @@ public class ExternalIdControllerV4 extends BaseController {
     }
     
     @PostMapping(path = {"/v3/externalids/{externalId}/password", "/v3/externalIds/{externalId}/password"})
-    public GeneratedPassword generatePassword(@PathVariable String externalId,
-            @RequestParam(defaultValue = "true") String createAccount) throws Exception {
+    public GeneratedPassword generatePassword(@PathVariable String externalId) throws Exception {
         UserSession session = getAuthenticatedSession(RESEARCHER);
-        
-        Boolean createAccountBool = Boolean.valueOf(createAccount);
-        
         App app = appService.getApp(session.getAppId());
-        return authenticationService.generatePassword(app, externalId, createAccountBool);
+        
+        return authenticationService.generatePassword(app, externalId);
     }
 }
