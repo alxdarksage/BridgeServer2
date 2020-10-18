@@ -139,7 +139,7 @@ public class ExternalIdService {
         
         if (account != null) {
             for (Enrollment en : account.getEnrollments()) {
-                if (en.getExternalId().equals(externalId)) {
+                if (en.getExternalId() != null && en.getExternalId().equals(externalId)) {
                     en.setExternalId(null);
                     break;
                 }

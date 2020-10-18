@@ -127,6 +127,12 @@ public class RequestContext {
     public String getId() {
         return requestId;
     }
+    /**
+     * The app context this caller’s account information is bound to. Note that worker
+     * role accounts can operate on application contexts outside of their bound context;
+     * in these calls we must pass the appId as a parameter from the controllers, rather
+     * than retrieving it from the request context.
+     */
     public String getCallerAppId() {
         return callerAppId;
     }
