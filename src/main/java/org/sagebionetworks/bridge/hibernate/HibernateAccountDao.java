@@ -250,6 +250,7 @@ public class HibernateAccountDao implements AccountDao {
         if (StringUtils.isNotBlank(idFilter)) {
             builder.append("AND en.externalId LIKE :idFilter", "idFilter", idFilter + "%");
         }
+        
         int count = hibernateHelper.queryCount(builder.getQuery(), builder.getParameters());
         
         return new PagedResourceList<>(infos, count, true);

@@ -422,6 +422,8 @@ public class ParticipantService {
         account.setPhoneVerified(FALSE);
         account.setHealthCode(generateGUID());
         account.setStatus(UNVERIFIED);
+        
+        RequestContext.updateFromAccount(account);
 
         // Hash password if it has been supplied.
         if (participant.getPassword() != null) {

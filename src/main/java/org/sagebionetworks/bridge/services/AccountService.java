@@ -329,7 +329,7 @@ public class AccountService {
         if (offsetBy != null && offsetBy < 0) {
             throw new BadRequestException(NEGATIVE_OFFSET_ERROR);
         }
-        if (pageSize != null && (pageSize < API_MINIMUM_PAGE_SIZE || pageSize > API_MAXIMUM_PAGE_SIZE)) {
+        if (pageSize != null && (pageSize < 1 || pageSize > API_MAXIMUM_PAGE_SIZE)) {
             throw new BadRequestException(PAGE_SIZE_ERROR);
         }
         return accountDao.getAccountSummariesWithExternalIds(appId, idFilter, offsetBy, pageSize)

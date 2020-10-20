@@ -7,9 +7,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.Errors;
 
 import org.sagebionetworks.bridge.models.studies.Enrollment;
+import org.sagebionetworks.bridge.services.StudyService;
 
 public class EnrollmentValidator extends AbstractValidator {
-    public static final EnrollmentValidator INSTANCE = new EnrollmentValidator();
+    private StudyService studyService;
+    
+    public EnrollmentValidator(StudyService studyService) {
+        this.studyService = studyService;
+    }
     
     @Override
     public void validate(Object target, Errors errors) {
@@ -23,6 +28,11 @@ public class EnrollmentValidator extends AbstractValidator {
         }
         if (StringUtils.isBlank(enrollment.getStudyId())) {
             errors.rejectValue("studyId", CANNOT_BE_NULL_OR_EMPTY);
+        }
+        if (StringUtils.isNotBlank(enrollment.getAppId()) && StringUtils.isNotBlank(enrollment.getStudyId())) {
+            if (studyService.getStudy(enrollment.getAppId(), enrollment.getStudyId(), false) == null) {
+                errors.rejectValue("studyId", "is not a study");
+            }    
         }
         if (enrollment.getExternalId() != null && isBlank(enrollment.getExternalId())) {
             errors.rejectValue("externalId", "cannot be blank");

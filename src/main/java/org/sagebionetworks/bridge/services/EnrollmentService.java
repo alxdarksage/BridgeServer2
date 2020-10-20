@@ -9,7 +9,6 @@ import static org.sagebionetworks.bridge.BridgeConstants.PAGE_SIZE_ERROR;
 import static org.sagebionetworks.bridge.models.ResourceList.ENROLLMENT_FILTER;
 import static org.sagebionetworks.bridge.models.ResourceList.OFFSET_BY;
 import static org.sagebionetworks.bridge.models.ResourceList.PAGE_SIZE;
-import static org.sagebionetworks.bridge.validators.EnrollmentValidator.INSTANCE;
 
 import java.util.List;
 
@@ -27,6 +26,7 @@ import org.sagebionetworks.bridge.models.accounts.AccountId;
 import org.sagebionetworks.bridge.models.studies.Enrollment;
 import org.sagebionetworks.bridge.models.studies.EnrollmentDetail;
 import org.sagebionetworks.bridge.models.studies.EnrollmentFilter;
+import org.sagebionetworks.bridge.validators.EnrollmentValidator;
 import org.sagebionetworks.bridge.validators.Validate;
 
 @Component
@@ -36,6 +36,8 @@ public class EnrollmentService {
     
     private EnrollmentDao enrollmentDao;
     
+    private StudyService studyService;
+    
     @Autowired
     public final void setAccountService(AccountService accountService) {
         this.accountService = accountService;
@@ -44,6 +46,11 @@ public class EnrollmentService {
     @Autowired
     public final void setEnrollmentDao(EnrollmentDao enrollmentDao) {
         this.enrollmentDao = enrollmentDao;
+    }
+    
+    @Autowired
+    public final void setStudyService(StudyService studyService) {
+        this.studyService = studyService;
     }
     
     protected DateTime getEnrollmentDateTime() {
@@ -95,13 +102,22 @@ public class EnrollmentService {
         checkNotNull(enrollment);
 
         // verify this has appId and accountId
-        Validate.entityThrowingException(INSTANCE, enrollment);
+        Validate.entityThrowingException(new EnrollmentValidator(studyService), enrollment);
 
         AccountId accountId = AccountId.forId(enrollment.getAppId(), enrollment.getAccountId());
         Account account = accountService.getAccount(accountId);
         if (account == null) {
             throw new EntityNotFoundException(Account.class);
         }
+        /*
+        for (Enrollment oneEnrollment : account.getEnrollments()) {
+            if (oneEnrollment.getStudyId().equals(enrollment.getStudyId())) {
+                throw new ConstraintViolationException.Builder()
+                    .withEntityKey("studyId", enrollment.getStudyId())
+                    .withMessage("Account already enrolled in study.").build();
+            }
+        }
+        */
         enrollment = enroll(account, enrollment);
         accountService.updateAccount(account, null);
         return enrollment;
@@ -114,7 +130,7 @@ public class EnrollmentService {
         checkNotNull(account);
         checkNotNull(newEnrollment);
         
-        Validate.entityThrowingException(INSTANCE, newEnrollment);
+        Validate.entityThrowingException(new EnrollmentValidator(studyService), newEnrollment);
         
         checkSelfStudyResearcherOrAdmin(account.getId(), newEnrollment.getStudyId());
 
@@ -155,7 +171,7 @@ public class EnrollmentService {
     public Enrollment unenroll(Enrollment enrollment) {
         checkNotNull(enrollment);
         
-        Validate.entityThrowingException(INSTANCE, enrollment);
+        Validate.entityThrowingException(new EnrollmentValidator(studyService), enrollment);
         
         AccountId accountId = AccountId.forId(enrollment.getAppId(), enrollment.getAccountId());
         Account account = accountService.getAccount(accountId);
@@ -174,7 +190,7 @@ public class EnrollmentService {
         checkNotNull(account);
         checkNotNull(enrollment);
         
-        Validate.entityThrowingException(INSTANCE, enrollment);
+        Validate.entityThrowingException(new EnrollmentValidator(studyService), enrollment);
         
         checkSelfStudyResearcherOrAdmin(account.getId(), enrollment.getStudyId());
         

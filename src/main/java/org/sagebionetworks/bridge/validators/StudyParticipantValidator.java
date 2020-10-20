@@ -91,7 +91,10 @@ public class StudyParticipantValidator implements Validator {
                 errors.pushNestedPath("enrollment");
                 if (isBlank(enrollment.getStudyId())) {
                     errors.rejectValue("studyId", "cannot be blank");
-                } else if (!isAdmin && !orgStudies.contains(enrollment.getStudyId())) {
+                }
+                // public sign ups are done by callers with no studies, so this is one case where we may
+                // want to keep the allowance for callers with no orgSponsoredStudies
+                else if (!isAdmin && !orgStudies.isEmpty() && !orgStudies.contains(enrollment.getStudyId())) {
                     errors.rejectValue("studyId", "is not a study of the caller");
                 } else {
                     Study study = studyService.getStudy(app.getIdentifier(), enrollment.getStudyId(), false);

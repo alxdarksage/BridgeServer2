@@ -11,6 +11,7 @@ import com.google.common.collect.ImmutableSet;
 
 import org.sagebionetworks.bridge.models.ClientInfo;
 import org.sagebionetworks.bridge.models.Metrics;
+import org.sagebionetworks.bridge.models.accounts.Account;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
 import org.sagebionetworks.bridge.models.accounts.UserSession;
@@ -91,7 +92,19 @@ public class RequestContext {
         RequestContext reqContext = builder.build();
         set(reqContext);
         return reqContext;
-    }        
+    }
+    
+    public static RequestContext updateFromAccount(Account account) {
+        RequestContext context = get();
+        RequestContext.Builder builder = context.toBuilder();
+        if (account.getId() != null) {
+            builder.withCallerAppId(account.getAppId());
+            builder.withCallerUserId(account.getId());
+        }
+        RequestContext reqContext = builder.build();
+        set(reqContext);
+        return reqContext;
+    }
     
     private final String requestId;
     private final String callerAppId;
