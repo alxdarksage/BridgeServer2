@@ -7,7 +7,6 @@ import static org.sagebionetworks.bridge.Roles.ADMIN;
 import java.util.Optional;
 import java.util.Set;
 
-import org.apache.commons.validator.routines.EmailValidator;
 import org.springframework.validation.Errors;
 import org.springframework.validation.Validator;
 
@@ -29,7 +28,8 @@ public class StudyParticipantValidator implements Validator {
     static final String ENROLLMENT_REQ_FOR_STUDIES = "must now be replaced with an Enrollment containing an external ID and study ID, or an organizational membership";
     static final String ENROLLMENT_REQ_FOR_EXTID = "must now be replaced with an Enrollment containing an external ID and study ID";
 
-    private static final EmailValidator EMAIL_VALIDATOR = EmailValidator.getInstance();
+    // see https://owasp.org/www-community/OWASP_Validation_Regex_Repository
+    private static final String OWASP_REGEXP_VALID_EMAIL = "^[a-zA-Z0-9_+&*-]+(?:\\.[a-zA-Z0-9_+&*-]+)*@(?:[a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,7}$";
     private final StudyService studyService;
     private final OrganizationService organizationService;
     private final App app;
@@ -70,8 +70,11 @@ public class StudyParticipantValidator implements Validator {
             if (phone != null && !Phone.isValid(phone)) {
                 errors.rejectValue("phone", "does not appear to be a phone number");
             }
-            // If provided, email must be valid
-            if (email != null && !EMAIL_VALIDATOR.isValid(email)) {
+            // If provided, email must be valid. Commons email validator v1.7 causes our test to 
+            // fail because the word "test" appears in the user name, for reasons I could not 
+            // deduce from their code. So we have switched to using OWASP regular expression to 
+            // match valid email addresses.
+            if (email != null && !email.matches(OWASP_REGEXP_VALID_EMAIL)) {
                 errors.rejectValue("email", "does not appear to be an email address");
             }
             // Password is optional, but validation is applied if supplied, any time it is 
@@ -107,7 +110,6 @@ public class StudyParticipantValidator implements Validator {
                 }
                 errors.popNestedPath();
             }
-
             
             // After account creation, organizational membership cannot be changed by updating an account
             // Instead, use the OrganizationService
@@ -120,7 +122,6 @@ public class StudyParticipantValidator implements Validator {
                     errors.rejectValue("orgMembership", "cannot be set by caller");
                 }
             }
-            
         } else {
             if (isBlank(participant.getId())) {
                 errors.rejectValue("id", "is required");
@@ -142,7 +143,7 @@ public class StudyParticipantValidator implements Validator {
             }
         }
     }
-    
+
     private String messageForSet(Set<String> set, String fieldName) {
         return String.format("'%s' is not defined for app (use %s)", 
                 fieldName, BridgeUtils.COMMA_SPACE_JOINER.join(set));
