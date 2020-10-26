@@ -409,5 +409,10 @@ ADD CONSTRAINT `fk_withdrawnBy` FOREIGN KEY (`withdrawnBy`) REFERENCES `Accounts
 
 -- changeset bridge:20
 
+ALTER TABLE `Assessments`
+ADD COLUMN `minutesToComplete` int(10) DEFAULT NULL;
+
+-- changeset bridge:21
+
 ALTER TABLE AccountsSubstudies
 ADD CONSTRAINT `unique_extId` UNIQUE (studyId, externalId);
