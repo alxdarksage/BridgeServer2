@@ -29,6 +29,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -279,6 +280,26 @@ public class BaseControllerTest extends Mockito {
         session.setAuthenticated(false);
         
         controller.getAuthenticatedSession();
+    }
+    
+    @Test
+    public void getAdminSession() {
+        for(Roles role : Roles.ADMINISTRATIVE_ROLES) {
+            checkAdminSessionWithRole(role);    
+        }
+    }
+    
+    private void checkAdminSessionWithRole(Roles role) {
+        session.setAppId(TEST_APP_ID);
+        session.setAuthenticated(true);
+        session.setParticipant(new StudyParticipant.Builder()
+                .withRoles(ImmutableSet.of(role)).build());
+        doReturn(session).when(controller).getSessionIfItExists();
+        
+        when(mockAppService.getApp(TEST_APP_ID)).thenReturn(app);
+        
+        UserSession retValue = controller.getAdminSession();
+        assertSame(retValue, session);
     }
 
     @Test

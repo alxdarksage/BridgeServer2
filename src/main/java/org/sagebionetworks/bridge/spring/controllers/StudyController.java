@@ -2,8 +2,7 @@ package org.sagebionetworks.bridge.spring.controllers;
 
 import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
-import static org.sagebionetworks.bridge.Roles.DEVELOPER;
-import static org.sagebionetworks.bridge.Roles.RESEARCHER;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -41,7 +40,7 @@ public class StudyController extends BaseController {
             @RequestParam(required = false) String offsetBy, 
             @RequestParam(required = false) String pageSize,            
             @RequestParam(defaultValue = "false") boolean includeDeleted) {
-        UserSession session = getAuthenticatedSession(DEVELOPER, RESEARCHER, ADMIN);
+        UserSession session = getAdminSession();
 
         int offsetByInt = BridgeUtils.getIntOrDefault(offsetBy, 0);
         int pageSizeInt = BridgeUtils.getIntOrDefault(pageSize, API_DEFAULT_PAGE_SIZE);
@@ -52,7 +51,7 @@ public class StudyController extends BaseController {
     @PostMapping(path = {"/v5/studies", "/v3/substudies"})
     @ResponseStatus(HttpStatus.CREATED)
     public VersionHolder createStudy() {
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
 
         Study study = parseJson(Study.class);
         
@@ -61,7 +60,7 @@ public class StudyController extends BaseController {
 
     @GetMapping(path = {"/v5/studies/{id}", "/v3/substudies/{id}"})
     public Study getStudy(@PathVariable String id) {
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
 
         return service.getStudy(session.getAppId(), id, true);
     }

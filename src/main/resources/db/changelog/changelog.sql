@@ -412,3 +412,7 @@ ADD CONSTRAINT `fk_withdrawnBy` FOREIGN KEY (`withdrawnBy`) REFERENCES `Accounts
 ALTER TABLE `Assessments`
 ADD COLUMN `minutesToComplete` int(10) DEFAULT NULL;
 
+-- changeset bridge:21
+
+ALTER TABLE `AccountRoles`
+MODIFY COLUMN `role` enum('DEVELOPER','RESEARCHER','ADMIN','ORG_ADMIN','WORKER','SUPERADMIN') NOT NULL;

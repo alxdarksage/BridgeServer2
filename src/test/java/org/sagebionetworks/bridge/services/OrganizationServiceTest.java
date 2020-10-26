@@ -4,7 +4,9 @@ import org.mockito.Mock;
 
 import static org.sagebionetworks.bridge.BridgeConstants.NEGATIVE_OFFSET_ERROR;
 import static org.sagebionetworks.bridge.BridgeConstants.PAGE_SIZE_ERROR;
+import static org.sagebionetworks.bridge.RequestContext.NULL_INSTANCE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.TestConstants.ACCOUNT_ID;
 import static org.sagebionetworks.bridge.TestConstants.CREATED_ON;
 import static org.sagebionetworks.bridge.TestConstants.MODIFIED_ON;
@@ -83,7 +85,7 @@ public class OrganizationServiceTest extends Mockito {
     
     @AfterMethod
     public void afterMethod() {
-        RequestContext.set(RequestContext.NULL_INSTANCE);
+        RequestContext.set(NULL_INSTANCE);
     }
     
     @Test
@@ -156,6 +158,11 @@ public class OrganizationServiceTest extends Mockito {
     
     @Test
     public void updateOrganization() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(IDENTIFIER)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .build());
+        
         Organization org = Organization.create();
         org.setAppId(TEST_APP_ID);
         org.setIdentifier(IDENTIFIER);
@@ -180,6 +187,11 @@ public class OrganizationServiceTest extends Mockito {
     @Test(expectedExceptions = EntityNotFoundException.class, 
             expectedExceptionsMessageRegExp = "Organization not found.")
     public void updateOrganizationNotFound() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(IDENTIFIER)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .build());
+        
         when(mockOrgDao.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(Optional.empty());
         
         Organization org = Organization.create();
@@ -306,8 +318,10 @@ public class OrganizationServiceTest extends Mockito {
     }
     
     @Test
-    public void addMember() {
-        RequestContext.set(new RequestContext.Builder().withCallerOrgMembership(IDENTIFIER).build());
+    public void addMemberAsAdmin() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(ADMIN))
+                .withCallerOrgMembership(IDENTIFIER).build());
         
         when(mockOrgDao.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(Optional.of(Organization.create()));
         
@@ -320,6 +334,24 @@ public class OrganizationServiceTest extends Mockito {
         verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
         assertEquals(accountCaptor.getValue().getOrgMembership(), IDENTIFIER);
         
+        verify(mockSessionUpdateService).updateOrgMembership(USER_ID, IDENTIFIER);
+    }
+    
+    @Test
+    public void addMemberAsOrgAdmin() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .withCallerOrgMembership(IDENTIFIER).build());
+        
+        when(mockOrgDao.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(Optional.of(Organization.create()));
+        
+        Account account = Account.create();
+        account.setId(USER_ID);
+        when(mockAccountDao.getAccount(ACCOUNT_ID)).thenReturn(Optional.of(account));
+        
+        service.addMember(TEST_APP_ID, IDENTIFIER, ACCOUNT_ID);
+        
+        verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
         verify(mockSessionUpdateService).updateOrgMembership(USER_ID, IDENTIFIER);
     }
     
@@ -367,8 +399,10 @@ public class OrganizationServiceTest extends Mockito {
     }
 
     @Test
-    public void removeMember() {
-        RequestContext.set(new RequestContext.Builder().withCallerOrgMembership(IDENTIFIER).build());
+    public void removeMemberAsAdmin() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(ADMIN))
+                .withCallerOrgMembership(IDENTIFIER).build());
         
         when(mockOrgDao.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(Optional.of(Organization.create()));
         Account account = Account.create();
@@ -381,6 +415,24 @@ public class OrganizationServiceTest extends Mockito {
         verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
         assertNull(accountCaptor.getValue().getOrgMembership());
         
+        verify(mockSessionUpdateService).updateOrgMembership(USER_ID, null);
+    }
+    
+    @Test
+    public void removeMemberAsOrgAdmin() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .withCallerOrgMembership(IDENTIFIER).build());
+        
+        when(mockOrgDao.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(Optional.of(Organization.create()));
+        Account account = Account.create();
+        account.setOrgMembership(IDENTIFIER);
+        account.setId(USER_ID);
+        when(mockAccountDao.getAccount(ACCOUNT_ID)).thenReturn(Optional.of(account));
+
+        service.removeMember(TEST_APP_ID, IDENTIFIER, ACCOUNT_ID);
+        
+        verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
         verify(mockSessionUpdateService).updateOrgMembership(USER_ID, null);
     }
     
@@ -445,7 +497,7 @@ public class OrganizationServiceTest extends Mockito {
     }
 
     @Test(expectedExceptions = UnauthorizedException.class, 
-            expectedExceptionsMessageRegExp = "Caller is not a member of.*")
+            expectedExceptionsMessageRegExp = "Caller is not an admin of.*")
     public void removeMemberNotAuthorized() {
         when(mockOrgDao.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(Optional.of(Organization.create()));
         Account account = Account.create();

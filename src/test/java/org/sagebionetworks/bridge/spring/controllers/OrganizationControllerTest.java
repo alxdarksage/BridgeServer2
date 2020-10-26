@@ -2,8 +2,7 @@ package org.sagebionetworks.bridge.spring.controllers;
 
 import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
-import static org.sagebionetworks.bridge.Roles.DEVELOPER;
-import static org.sagebionetworks.bridge.Roles.RESEARCHER;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestConstants.USER_ID;
 import static org.sagebionetworks.bridge.TestUtils.assertCreate;
@@ -99,7 +98,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void getOrganizations() {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, RESEARCHER, DEVELOPER);
+        doReturn(session).when(controller).getAdminSession();
         
         PagedResourceList<Organization> page = new PagedResourceList<>(ImmutableList.of(), 10);
         when(mockService.getOrganizations(TEST_APP_ID, 150, 50)).thenReturn(page);
@@ -112,7 +111,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void getOrganizationsWithDefaults() {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, RESEARCHER, DEVELOPER);
+        doReturn(session).when(controller).getAdminSession();
         
         controller.getOrganizations(null, null);
         
@@ -141,7 +140,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void updateOrganization() throws Exception {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         Organization org = Organization.create();
         org.setName("This is my organization");
@@ -163,7 +162,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void getOrganization() {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         Organization org = Organization.create();
         when(mockService.getOrganization(TEST_APP_ID, IDENTIFIER)).thenReturn(org);
@@ -184,7 +183,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void getMembers() throws Exception {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, DEVELOPER, RESEARCHER);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         PagedResourceList<AccountSummary> page = new PagedResourceList<AccountSummary>(ImmutableList.of(), 0);
         when(mockService.getMembers(eq(TEST_APP_ID), eq(IDENTIFIER), any())).thenReturn(page);
@@ -201,7 +200,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void addMember() {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         controller.addMember(IDENTIFIER, USER_ID);
         
@@ -213,7 +212,7 @@ public class OrganizationControllerTest extends Mockito {
 
     @Test
     public void removeMember() {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         controller.removeMember(IDENTIFIER, USER_ID);
         
@@ -225,7 +224,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void getUnassignedAdmins() throws Exception {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, DEVELOPER, RESEARCHER);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         AccountSummarySearch initial = new AccountSummarySearch.Builder()
             .withOrgMembership("something-to-be-overridden")

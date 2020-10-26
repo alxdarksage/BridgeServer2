@@ -1,12 +1,14 @@
 package org.sagebionetworks.bridge.hibernate;
 
 import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.TestConstants.PHONE;
 import static org.sagebionetworks.bridge.TestConstants.SYNAPSE_USER_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
 import static org.sagebionetworks.bridge.dao.AccountDao.MIGRATION_VERSION;
+import static org.sagebionetworks.bridge.hibernate.HibernateAccountDao.FULL_QUERY;
 import static org.sagebionetworks.bridge.models.accounts.AccountStatus.ENABLED;
 import static org.sagebionetworks.bridge.models.accounts.AccountStatus.UNVERIFIED;
 import static org.sagebionetworks.bridge.models.accounts.PasswordAlgorithm.DEFAULT_PASSWORD_ALGORITHM;
@@ -860,8 +862,7 @@ public class HibernateAccountDaoTest extends Mockito {
     public void noLanguageQueryCorrect() throws Exception {
         AccountSummarySearch search = new AccountSummarySearch.Builder().build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments AS enrollment "
                 + "WITH acct.id = enrollment.accountId WHERE acct.appId = :appId GROUP BY acct.id";
@@ -874,8 +875,7 @@ public class HibernateAccountDaoTest extends Mockito {
     public void languageQueryCorrect() throws Exception {
         AccountSummarySearch search = new AccountSummarySearch.Builder().withLanguage("en").build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments AS enrollment "
                 + "WITH acct.id = enrollment.accountId WHERE acct.appId = :appId AND "
                 + ":language IN ELEMENTS(acct.languages) GROUP BY acct.id";
@@ -889,8 +889,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder().withNoneOfGroups(Sets.newHashSet("sdk-int-1"))
                 .withAllOfGroups(Sets.newHashSet("group1")).build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments "
                 + "AS enrollment WITH acct.id = enrollment.accountId WHERE acct.appId = :appId AND "
@@ -908,8 +907,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder().withAllOfGroups(Sets.newHashSet("group1"))
                 .build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments "
                 + "AS enrollment WITH acct.id = enrollment.accountId WHERE acct.appId = :appId AND "
@@ -925,8 +923,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder()
                 .withAllOfGroups(Sets.newHashSet("sdk-int-1", "group1")).build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments "
                 + "AS enrollment WITH acct.id = enrollment.accountId WHERE acct.appId = :appId AND "
@@ -943,8 +940,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder().withNoneOfGroups(Sets.newHashSet("group1"))
                 .build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments "
                 + "AS enrollment WITH acct.id = enrollment.accountId WHERE acct.appId = :appId AND "
@@ -960,8 +956,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder()
                 .withNoneOfGroups(Sets.newHashSet("sdk-int-1", "group1")).build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN acct.enrollments "
                 + "AS enrollment WITH acct.id = enrollment.accountId WHERE acct.appId = :appId AND "
@@ -979,8 +974,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder()
                 .withOrgMembership(TEST_ORG_ID).build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN "
                 +"acct.enrollments AS enrollment WITH acct.id = enrollment.accountId "
@@ -995,8 +989,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder()
                 .withOrgMembership("<none>").build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN "
                 +"acct.enrollments AS enrollment WITH acct.id = enrollment.accountId "
@@ -1011,8 +1004,7 @@ public class HibernateAccountDaoTest extends Mockito {
         AccountSummarySearch search = new AccountSummarySearch.Builder()
                 .withAdminOnly(true).build();
 
-        QueryBuilder builder = dao.makeQuery(HibernateAccountDao.FULL_QUERY, TEST_APP_ID, null,
-                search, false);
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
 
         String finalQuery = "SELECT acct FROM HibernateAccount AS acct LEFT JOIN "
                 +"acct.enrollments AS enrollment WITH acct.id = enrollment.accountId "
@@ -1021,6 +1013,23 @@ public class HibernateAccountDaoTest extends Mockito {
         assertEquals(builder.getQuery(), finalQuery);
         assertNull(builder.getParameters().get("orgId"));
         
+    }
+    
+    @Test
+    public void adminQueryForOrgAdminCorrect() throws Exception {
+        RequestContext.set(new RequestContext.Builder()
+                .withOrgSponsoredStudies(ImmutableSet.of("study1"))
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN)).build());
+        
+        AccountSummarySearch search = new AccountSummarySearch.Builder()
+                .withAdminOnly(true).build();
+        
+        QueryBuilder builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
+        assertFalse(builder.getQuery().contains("AND enrollment.studyId IN (:studies)"));
+        
+        search = new AccountSummarySearch.Builder().withAdminOnly(false).build();
+        builder = dao.makeQuery(FULL_QUERY, TEST_APP_ID, null, search, false);
+        assertTrue(builder.getQuery().contains("AND enrollment.studyId IN (:studies)"));
     }
 
     @Test

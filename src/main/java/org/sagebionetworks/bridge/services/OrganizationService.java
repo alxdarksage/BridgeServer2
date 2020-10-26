@@ -3,6 +3,7 @@ package org.sagebionetworks.bridge.services;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.sagebionetworks.bridge.AuthUtils.checkOrgAdmin;
 import static org.sagebionetworks.bridge.AuthUtils.checkOrgMembership;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MINIMUM_PAGE_SIZE;
@@ -120,6 +121,8 @@ public class OrganizationService {
         
         Validate.entityThrowingException(INSTANCE, organization);
         
+        checkOrgAdmin(organization.getIdentifier());
+        
         Organization existing = orgDao.getOrganization(organization.getAppId(), organization.getIdentifier())
                 .orElseThrow(() -> new EntityNotFoundException(Organization.class));        
         
@@ -198,8 +201,8 @@ public class OrganizationService {
         Account account = accountDao.getAccount(accountId)
                 .orElseThrow(() -> new EntityNotFoundException(Account.class));
         
-        checkOrgMembership(identifier);
-
+        checkOrgAdmin(identifier);
+        
         account.setOrgMembership(identifier);
         accountDao.updateAccount(account, null);
         sessionUpdateService.updateOrgMembership(account.getId(), identifier);
@@ -216,7 +219,7 @@ public class OrganizationService {
         Account account = accountDao.getAccount(accountId)
                 .orElseThrow(() -> new EntityNotFoundException(Account.class));
         
-        checkOrgMembership(identifier);
+        checkOrgAdmin(identifier);
         
         // Indicate if caller is trying to remove someone from an org they don't belong to
         if (account.getOrgMembership() == null || !account.getOrgMembership().equals(identifier)) {

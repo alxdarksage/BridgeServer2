@@ -2,6 +2,7 @@ package org.sagebionetworks.bridge.validators;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 
 import java.util.Optional;
 import java.util.Set;
@@ -83,7 +84,9 @@ public class StudyParticipantValidator implements Validator {
             
             // After account creation, organizational membership cannot be changed by updating an account
             // Instead, use the OrganizationService
-            if (isNotBlank(participant.getOrgMembership())) {
+            if (participant.getRoles().contains(ORG_ADMIN) && isBlank(participant.getOrgMembership())) {
+                errors.rejectValue("orgMembership", "must be assigned for an organization admin");
+            } else if (isNotBlank(participant.getOrgMembership())) {
                 String orgId = participant.getOrgMembership();
                 Optional<Organization> opt = organizationService.getOrganizationOpt(app.getIdentifier(), orgId);
                 if (!opt.isPresent()) {

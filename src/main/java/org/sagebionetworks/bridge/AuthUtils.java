@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.sagebionetworks.bridge.BridgeConstants.CALLER_NOT_MEMBER_ERROR;
 import static org.sagebionetworks.bridge.BridgeUtils.isEmpty;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.Roles.WORKER;
 
@@ -48,6 +49,16 @@ public class AuthUtils {
     public static void checkOrgMembership(String orgId) {
         if (!isInOrganization(orgId)) {
             throw new UnauthorizedException("Caller is not a member of " + orgId);    
+        }
+    }
+    
+    /**
+     * Verifies that the caller is a member of this organization, and that they are at least
+     * an organizational admin. It's a stronger check than `checkOrgMembership`. 
+     */
+    public static void checkOrgAdmin(String orgId) {
+        if (!(isInOrganization(orgId) && isInRoles(null, ADMIN, ORG_ADMIN))) {
+            throw new UnauthorizedException("Caller is not an admin of " + orgId);
         }
     }
     
@@ -100,8 +111,7 @@ public class AuthUtils {
             return true;
         }
         Set<String> sponsoredStudies = context.getOrgSponsoredStudies();
-        boolean canAccessStudy = sponsoredStudies.isEmpty() || studyId == null 
-                || sponsoredStudies.contains(studyId);
+        boolean canAccessStudy = studyId == null || sponsoredStudies.isEmpty() || sponsoredStudies.contains(studyId);
         return (canAccessStudy && context.isInRole(roleSet));
     }
     

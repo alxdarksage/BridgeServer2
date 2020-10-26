@@ -1,10 +1,8 @@
 package org.sagebionetworks.bridge.services;
 
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MINIMUM_PAGE_SIZE;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -18,11 +16,14 @@ import java.util.Set;
 import org.joda.time.DateTime;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.dao.OrganizationDao;
 import org.sagebionetworks.bridge.dao.StudyDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
@@ -36,7 +37,7 @@ import org.sagebionetworks.bridge.models.studies.Study;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
-public class StudyServiceTest {
+public class StudyServiceTest extends Mockito {
     private static final PagedResourceList<Study> STUDIES = new PagedResourceList<>(
             ImmutableList.of(Study.create(), Study.create()), 5);
     private static final VersionHolder VERSION_HOLDER = new VersionHolder(1L);
@@ -45,19 +46,20 @@ public class StudyServiceTest {
     private StudyDao studyDao;
     
     @Mock
+    private SponsorService mockSponsorService;
+    
+    @Mock
     private OrganizationDao organizationDao;
     
     @Captor
     private ArgumentCaptor<Study> studyCaptor;
     
+    @InjectMocks
     private StudyService service;
     
     @BeforeMethod
     public void before() {
         MockitoAnnotations.initMocks(this);
-        
-        service = new StudyService();
-        service.setStudyDao(studyDao);
     }
     
     @Test
@@ -169,6 +171,8 @@ public class StudyServiceTest {
         assertFalse(persisted.isDeleted());
         assertNotEquals(persisted.getCreatedOn(), timestamp);
         assertNotEquals(persisted.getModifiedOn(), timestamp);
+        
+        verify(mockSponsorService, never()).addStudySponsor(any(), any(), any());
     }
     
     @Test(expectedExceptions = InvalidEntityException.class)
@@ -185,6 +189,27 @@ public class StudyServiceTest {
         when(studyDao.getStudy(TEST_APP_ID, "oneId")).thenReturn(study);
         
         service.createStudy(TEST_APP_ID, study);
+    }
+    
+    @Test
+    public void createStudyForOrgAdminAssociatesOrg() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .withCallerOrgMembership("orgId")
+                .build());
+        
+        Study study = Study.create();
+        study.setIdentifier("oneId");
+        study.setName("oneName");
+        study.setAppId("junk");
+
+        when(studyDao.createStudy(any())).thenReturn(VERSION_HOLDER);
+        
+        VersionHolder returnedValue = service.createStudy(TEST_APP_ID, study);
+        assertEquals(returnedValue, VERSION_HOLDER);
+        
+        verify(studyDao).createStudy(any());
+        verify(mockSponsorService).addStudySponsor(TEST_APP_ID, "oneId", "orgId");
     }
     
     @Test
