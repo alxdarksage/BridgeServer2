@@ -11,6 +11,7 @@ import org.springframework.validation.Validator;
 
 import org.sagebionetworks.bridge.AuthUtils;
 import org.sagebionetworks.bridge.BridgeUtils;
+import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.Phone;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
@@ -83,7 +84,9 @@ public class StudyParticipantValidator implements Validator {
             
             // After account creation, organizational membership cannot be changed by updating an account
             // Instead, use the OrganizationService
-            if (isNotBlank(participant.getOrgMembership())) {
+            if (participant.getRoles().contains(Roles.ORG_ADMIN) && isBlank(participant.getOrgMembership())) {
+                errors.rejectValue("orgMembership", "must be assigned for an organization admin");
+            } else if (isNotBlank(participant.getOrgMembership())) {
                 String orgId = participant.getOrgMembership();
                 Optional<Organization> opt = organizationService.getOrganizationOpt(app.getIdentifier(), orgId);
                 if (!opt.isPresent()) {

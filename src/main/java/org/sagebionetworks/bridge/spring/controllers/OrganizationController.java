@@ -2,6 +2,7 @@ package org.sagebionetworks.bridge.spring.controllers;
 
 import static org.sagebionetworks.bridge.BridgeConstants.API_DEFAULT_PAGE_SIZE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.springframework.http.HttpStatus.CREATED;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.sagebionetworks.bridge.BridgeUtils;
+import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.models.AccountSummarySearch;
 import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.StatusMessage;
@@ -60,7 +62,7 @@ public class OrganizationController extends BaseController {
     @PostMapping("/v1/organizations")
     @ResponseStatus(HttpStatus.CREATED)
     public Organization createOrganization() {
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         Organization organization = parseJson(Organization.class);
         organization.setAppId(session.getAppId());
@@ -72,7 +74,7 @@ public class OrganizationController extends BaseController {
     public Organization updateOrganization(@PathVariable String orgId) {
         // A study admin caller will also be able to edit some fields of their own organization.
         // The association of accounts to organizations has to be completed first.
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         Organization organization = parseJson(Organization.class);
         organization.setAppId(session.getAppId());
@@ -85,7 +87,7 @@ public class OrganizationController extends BaseController {
     public Organization getOrganization(@PathVariable String orgId) {
         // A study admin caller will be able to retrieve their own organization.
         // The association of accounts to organizations has to be completed first.
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         return service.getOrganization(session.getAppId(), orgId);
     }
@@ -108,7 +110,7 @@ public class OrganizationController extends BaseController {
     @PostMapping("/v1/organizations/{orgId}/members/{userId}")
     @ResponseStatus(code = CREATED)
     public StatusMessage addMember(@PathVariable String orgId, @PathVariable String userId) {
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         AccountId accountId = BridgeUtils.parseAccountId(session.getAppId(), userId);
         service.addMember(session.getAppId(), orgId, accountId);
@@ -118,7 +120,7 @@ public class OrganizationController extends BaseController {
 
     @DeleteMapping("/v1/organizations/{orgId}/members/{userId}")
     public StatusMessage removeMember(@PathVariable String orgId, @PathVariable String userId) {
-        UserSession session = getAuthenticatedSession(ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         AccountId accountId = BridgeUtils.parseAccountId(session.getAppId(), userId);
         service.removeMember(session.getAppId(), orgId, accountId);
@@ -133,7 +135,7 @@ public class OrganizationController extends BaseController {
      */
     @PostMapping("/v1/organizations/nonmembers")
     public PagedResourceList<AccountSummary> getUnassignedAdmins() {
-        UserSession session = getAdministrativeSession();
+        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
         
         AccountSummarySearch initial = parseJson(AccountSummarySearch.class);
         AccountSummarySearch search = new AccountSummarySearch.Builder()

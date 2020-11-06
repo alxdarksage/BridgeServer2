@@ -6,6 +6,8 @@ import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MINIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.NEGATIVE_OFFSET_ERROR;
 import static org.sagebionetworks.bridge.BridgeConstants.PAGE_SIZE_ERROR;
+import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.models.ResourceList.INCLUDE_DELETED;
 import static org.sagebionetworks.bridge.models.ResourceList.OFFSET_BY;
 import static org.sagebionetworks.bridge.models.ResourceList.PAGE_SIZE;
@@ -14,6 +16,8 @@ import java.util.Set;
 
 import org.joda.time.DateTime;
 
+import org.sagebionetworks.bridge.RequestContext;
+import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.dao.StudyDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
 import org.sagebionetworks.bridge.exceptions.EntityAlreadyExistsException;
@@ -33,9 +37,16 @@ public class StudyService {
     
     private StudyDao studyDao;
     
+    private SponsorService sponsorService;
+    
     @Autowired
     final void setStudyDao(StudyDao studyDao) {
         this.studyDao = studyDao;
+    }
+    
+    @Autowired
+    final void setSponsorService(SponsorService sponsorService) {
+        this.sponsorService = sponsorService;
     }
     
     public Study getStudy(String appId, String studyId, boolean throwsException) {
@@ -93,7 +104,15 @@ public class StudyService {
         if (existing != null) {
             throw new EntityAlreadyExistsException(Study.class, ImmutableMap.of("id", existing.getIdentifier()));
         }
-        return studyDao.createStudy(study);
+        VersionHolder keys = studyDao.createStudy(study);
+        
+        // Give future access to this study to the person who is creating it, through 
+        // their organization.
+        RequestContext context = RequestContext.get();
+        if (context.getCallerOrgMembership() != null) {
+            sponsorService.addStudySponsor(study.getAppId(), study.getIdentifier(), context.getCallerOrgMembership());
+        }
+        return keys;
     }
 
     public VersionHolder updateStudy(String appId, Study study) {
