@@ -1,5 +1,6 @@
 package org.sagebionetworks.bridge.validators;
 
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.TestConstants.SYNAPSE_USER_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
@@ -471,6 +472,14 @@ public class StudyParticipantValidatorTest {
         StudyParticipant participant = withMemberOrganization(TEST_ORG_ID);
         validator = makeValidator(true);
         Validate.entityThrowingException(validator, participant);
+    }
+    
+    @Test
+    public void orgAdminMustIncludeOrgId() {
+        StudyParticipant participant = new StudyParticipant.Builder()
+                .withRoles(ImmutableSet.of(ORG_ADMIN)).build();
+        
+        assertValidatorMessage(validator, participant, "orgMembership", "must be assigned for an organization admin");
     }
     
     private StudyParticipantValidator makeValidator(boolean isNew) {

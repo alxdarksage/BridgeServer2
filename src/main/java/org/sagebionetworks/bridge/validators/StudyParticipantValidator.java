@@ -86,7 +86,8 @@ public class StudyParticipantValidator implements Validator {
             // Instead, use the OrganizationService
             if (participant.getRoles().contains(Roles.ORG_ADMIN) && isBlank(participant.getOrgMembership())) {
                 errors.rejectValue("orgMembership", "must be assigned for an organization admin");
-            } else if (isNotBlank(participant.getOrgMembership())) {
+            }
+            if (isNotBlank(participant.getOrgMembership())) {
                 String orgId = participant.getOrgMembership();
                 Optional<Organization> opt = organizationService.getOrganizationOpt(app.getIdentifier(), orgId);
                 if (!opt.isPresent()) {

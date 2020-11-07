@@ -4,6 +4,7 @@ import static org.sagebionetworks.bridge.BridgeConstants.CALLER_NOT_MEMBER_ERROR
 import static org.sagebionetworks.bridge.RequestContext.NULL_INSTANCE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.DEVELOPER;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.Roles.WORKER;
 import static org.sagebionetworks.bridge.TestConstants.GUID;
@@ -293,5 +294,32 @@ public class AuthUtilsTest extends Mockito {
                 .withOrgSponsoredStudies(ImmutableSet.of("study1", "study2")).build());
         
         assertTrue( AuthUtils.isStudyScopedToCaller("study2") );
+    }
+    
+    @Test
+    public void checkOrgAdminSucceeds() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN)).build());
+        
+        AuthUtils.checkOrgAdmin(TEST_ORG_ID);
+    }
+
+    @Test(expectedExceptions = UnauthorizedException.class)
+    public void checkOrgAdminFailsOnOrgMembership() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership("notTheTestOrg")
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN)).build());
+        
+        AuthUtils.checkOrgAdmin(TEST_ORG_ID);
+    }
+
+    @Test(expectedExceptions = UnauthorizedException.class)
+    public void checkOrgAdminFailsOnRole() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID)
+                .withCallerRoles(ImmutableSet.of(DEVELOPER)).build());
+        
+        AuthUtils.checkOrgAdmin(TEST_ORG_ID);
     }
 }

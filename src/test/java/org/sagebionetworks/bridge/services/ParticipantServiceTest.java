@@ -6,6 +6,7 @@ import static org.sagebionetworks.bridge.BridgeUtils.collectExternalIds;
 import static org.sagebionetworks.bridge.RequestContext.NULL_INSTANCE;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.DEVELOPER;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.Roles.SUPERADMIN;
 import static org.sagebionetworks.bridge.Roles.WORKER;
@@ -1463,15 +1464,28 @@ public class ParticipantServiceTest extends Mockito {
     
     @Test
     public void adminCanUpdateDeveloperAndResearcher() {
-        verifyRoleUpdate(ImmutableSet.of(ADMIN), ImmutableSet.of(DEVELOPER, RESEARCHER));
+        verifyRoleUpdate(ImmutableSet.of(ADMIN), ImmutableSet.of(DEVELOPER, RESEARCHER, ORG_ADMIN));
     }
     
     @Test
     public void superadminCanUpdateEverybody() {
         verifyRoleUpdate(ImmutableSet.of(SUPERADMIN), 
-                ImmutableSet.of(SUPERADMIN, ADMIN, DEVELOPER, RESEARCHER, WORKER));
+                ImmutableSet.of(SUPERADMIN, ADMIN, DEVELOPER, RESEARCHER, WORKER, ORG_ADMIN));
     }
 
+    @Test
+    public void orgAdminCanCreateDeveloperResearcherOrgAmdin() {
+        verifyRoleUpdate(ImmutableSet.of(ORG_ADMIN), 
+                ImmutableSet.of(DEVELOPER, RESEARCHER, ORG_ADMIN));
+    }
+
+    @Test
+    public void orgAdminCanUpdateDeveloperResearcherOrgAmdin() {
+        verifyRoleUpdate(ImmutableSet.of(ORG_ADMIN), 
+                ImmutableSet.of(DEVELOPER, RESEARCHER, ORG_ADMIN));
+
+    }
+    
     // Now, verify that roles cannot *remove* roles they don't have permissions to remove
     
     @Test
@@ -1569,7 +1583,14 @@ public class ParticipantServiceTest extends Mockito {
         account.setRoles(ImmutableSet.of(DEVELOPER, RESEARCHER, ADMIN, SUPERADMIN, WORKER));
         verifyRoleUpdate(ImmutableSet.of(DEVELOPER), ImmutableSet.of(), 
                 ImmutableSet.of(DEVELOPER, RESEARCHER, ADMIN, SUPERADMIN, WORKER));
-    }     
+    } 
+    
+    @Test
+    public void orgAdminCanRemoveDeveloperResearcherOrgAdmin() {
+        account.setRoles(ImmutableSet.of(DEVELOPER, RESEARCHER, ADMIN, ORG_ADMIN, SUPERADMIN, WORKER));
+        verifyRoleUpdate(ImmutableSet.of(ORG_ADMIN), ImmutableSet.of(), 
+                ImmutableSet.of(ADMIN, SUPERADMIN, WORKER));
+    }
 
     @Test
     public void getParticipantWithoutHistories() {
@@ -3375,7 +3396,8 @@ public class ParticipantServiceTest extends Mockito {
     }
     
     private void verifyRoleUpdate(Set<Roles> callerRoles, Set<Roles> expected) {
-        verifyRoleUpdate(callerRoles, ImmutableSet.of(SUPERADMIN, ADMIN, RESEARCHER, DEVELOPER, WORKER), expected);
+        verifyRoleUpdate(callerRoles, ImmutableSet.of(SUPERADMIN, ADMIN, RESEARCHER, 
+                DEVELOPER, ORG_ADMIN, WORKER), expected);
     }
 
     // Makes an app instance, so tests can modify it without affecting other tests.

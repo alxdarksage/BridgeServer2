@@ -6,8 +6,6 @@ import static org.sagebionetworks.bridge.BridgeConstants.API_MAXIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.API_MINIMUM_PAGE_SIZE;
 import static org.sagebionetworks.bridge.BridgeConstants.NEGATIVE_OFFSET_ERROR;
 import static org.sagebionetworks.bridge.BridgeConstants.PAGE_SIZE_ERROR;
-import static org.sagebionetworks.bridge.Roles.ADMIN;
-import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.models.ResourceList.INCLUDE_DELETED;
 import static org.sagebionetworks.bridge.models.ResourceList.OFFSET_BY;
 import static org.sagebionetworks.bridge.models.ResourceList.PAGE_SIZE;
@@ -17,7 +15,6 @@ import java.util.Set;
 import org.joda.time.DateTime;
 
 import org.sagebionetworks.bridge.RequestContext;
-import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.dao.StudyDao;
 import org.sagebionetworks.bridge.exceptions.BadRequestException;
 import org.sagebionetworks.bridge.exceptions.EntityAlreadyExistsException;
