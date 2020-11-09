@@ -13,6 +13,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
+import java.util.Optional;
 import java.util.Set;
 
 import org.joda.time.DateTime;
@@ -35,6 +36,7 @@ import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
 import org.sagebionetworks.bridge.exceptions.InvalidEntityException;
 import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.VersionHolder;
+import org.sagebionetworks.bridge.models.organizations.Organization;
 import org.sagebionetworks.bridge.models.studies.Study;
 
 import com.google.common.collect.ImmutableList;
@@ -53,6 +55,9 @@ public class StudyServiceTest extends Mockito {
     
     @Mock
     private SponsorService sponsorService;
+    
+    @Mock
+    private OrganizationService orgService;
     
     @Captor
     private ArgumentCaptor<Study> studyCaptor;
@@ -168,6 +173,9 @@ public class StudyServiceTest extends Mockito {
 
         when(studyDao.createStudy(any())).thenReturn(VERSION_HOLDER);
         
+        when(orgService.getOrganizationOpt(TEST_APP_ID, TEST_ORG_ID))
+            .thenReturn(Optional.of(Organization.create()));
+        
         VersionHolder returnedValue = service.createStudy(TEST_APP_ID, study);
         assertEquals(returnedValue, VERSION_HOLDER);
         
@@ -183,6 +191,30 @@ public class StudyServiceTest extends Mockito {
         assertNotEquals(persisted.getModifiedOn(), timestamp);
         
         verify(sponsorService).addStudySponsor(TEST_APP_ID, TEST_STUDY_ID, TEST_ORG_ID);
+    }
+    
+    @Test
+    public void createStudyNoOrgDoesNotCallSponsorService() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID).build());
+        Study study = Study.create();
+        study.setIdentifier(TEST_STUDY_ID);
+        study.setName("oneName");
+        study.setAppId("junk");
+        study.setVersion(10L);
+        study.setDeleted(true);
+        DateTime timestamp = DateTime.now().minusHours(2);
+        study.setCreatedOn(timestamp);
+        study.setModifiedOn(timestamp);
+
+        when(studyDao.createStudy(any())).thenReturn(VERSION_HOLDER);
+        
+        when(orgService.getOrganizationOpt(TEST_APP_ID, TEST_ORG_ID)).thenReturn(Optional.empty());
+        
+        service.createStudy(TEST_APP_ID, study);
+        
+        verify(studyDao).createStudy(any());
+        verify(sponsorService, never()).addStudySponsor(any(), any(), any());
     }
     
     @Test

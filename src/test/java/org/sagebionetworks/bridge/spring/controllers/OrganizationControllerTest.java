@@ -120,7 +120,7 @@ public class OrganizationControllerTest extends Mockito {
     
     @Test
     public void createOrganization() throws Exception {
-        doReturn(session).when(controller).getAuthenticatedSession(ADMIN, ORG_ADMIN);
+        doReturn(session).when(controller).getAuthenticatedSession(ADMIN);
         
         Organization org = Organization.create();
         org.setName("This is my organization");

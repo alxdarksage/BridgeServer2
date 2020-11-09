@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.sagebionetworks.bridge.BridgeUtils;
-import org.sagebionetworks.bridge.Roles;
 import org.sagebionetworks.bridge.models.AccountSummarySearch;
 import org.sagebionetworks.bridge.models.PagedResourceList;
 import org.sagebionetworks.bridge.models.StatusMessage;
@@ -62,7 +61,7 @@ public class OrganizationController extends BaseController {
     @PostMapping("/v1/organizations")
     @ResponseStatus(HttpStatus.CREATED)
     public Organization createOrganization() {
-        UserSession session = getAuthenticatedSession(ADMIN, ORG_ADMIN);
+        UserSession session = getAuthenticatedSession(ADMIN);
         
         Organization organization = parseJson(Organization.class);
         organization.setAppId(session.getAppId());

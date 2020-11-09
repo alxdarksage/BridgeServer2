@@ -24,6 +24,7 @@ import org.sagebionetworks.bridge.models.VersionHolder;
 import org.sagebionetworks.bridge.models.studies.Study;
 import org.sagebionetworks.bridge.validators.StudyValidator;
 import org.sagebionetworks.bridge.validators.Validate;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +37,8 @@ public class StudyService {
     
     private SponsorService sponsorService;
     
+    private OrganizationService organizationService;
+    
     @Autowired
     final void setStudyDao(StudyDao studyDao) {
         this.studyDao = studyDao;
@@ -44,6 +47,11 @@ public class StudyService {
     @Autowired
     final void setSponsorService(SponsorService sponsorService) {
         this.sponsorService = sponsorService;
+    }
+    
+    @Autowired
+    final void setOrganizationService(OrganizationService organizationService) {
+        this.organizationService = organizationService;
     }
     
     public Study getStudy(String appId, String studyId, boolean throwsException) {
@@ -103,11 +111,16 @@ public class StudyService {
         }
         VersionHolder keys = studyDao.createStudy(study);
         
-        // Give future access to this study to the person who is creating it, through 
-        // their organization.
+        // Give future access to this study to the person who is creating it, through their organization. 
+        // However, this only works if the organization is already in the app context, which is not a given
+        // for superadmins in the integration tests, so check for that first.
         RequestContext context = RequestContext.get();
         if (context.getCallerOrgMembership() != null) {
-            sponsorService.addStudySponsor(study.getAppId(), study.getIdentifier(), context.getCallerOrgMembership());
+            if(organizationService.getOrganizationOpt(
+                    study.getAppId(), context.getCallerOrgMembership()).isPresent()) {
+                sponsorService.addStudySponsor(study.getAppId(), study.getIdentifier(),
+                        context.getCallerOrgMembership());
+            }
         }
         return keys;
     }
