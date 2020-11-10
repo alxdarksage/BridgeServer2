@@ -8,6 +8,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.sagebionetworks.bridge.BridgeUtils.studyAssociationsVisibleToCaller;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.CAN_BE_EDITED_BY;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.Roles.WORKER;
 import static org.sagebionetworks.bridge.dao.AccountDao.MIGRATION_VERSION;
 import static org.sagebionetworks.bridge.models.accounts.AccountStatus.ENABLED;
@@ -425,6 +426,9 @@ public class ParticipantService {
         account.setPhoneVerified(FALSE);
         account.setHealthCode(generateGUID());
         account.setStatus(UNVERIFIED);
+        if (RequestContext.get().isAdministrator()) {
+            account.setOrgMembership(participant.getOrgMembership());
+        }
 
         // Hash password if it has been supplied.
         if (participant.getPassword() != null) {

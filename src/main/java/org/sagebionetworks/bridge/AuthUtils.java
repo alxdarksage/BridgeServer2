@@ -17,6 +17,12 @@ import org.slf4j.LoggerFactory;
 
 import org.sagebionetworks.bridge.exceptions.UnauthorizedException;
 
+/**
+ * This is difficult to use and maintain. Some role checks should check for exclusion
+ * (e.g. if I'm an ORG_ADMIN or ADMIN, which should apply...it varies). We've split 
+ * up security checks between the controllers and now in the services (arguably they 
+ * could all be in the services).
+ */
 public class AuthUtils {
     private static final Logger LOG = LoggerFactory.getLogger(AuthUtils.class);
 
@@ -34,9 +40,13 @@ public class AuthUtils {
      * to all administrative accounts. 
      */
     public static void checkSelfResearcherOrAdmin(String targetUserId) {
-        if (!(isSelf(targetUserId) || isInRoles(null, ADMIN, RESEARCHER))) {
+        if (!isSelfResearcherOrAdmin(targetUserId)) {
             throw new UnauthorizedException();
         }
+    }
+    
+    public static boolean isSelfResearcherOrAdmin(String targetUserId) {
+        return isSelf(targetUserId) || isInRoles(null, ADMIN, RESEARCHER);
     }
     
     /**
@@ -56,8 +66,12 @@ public class AuthUtils {
      * Verifies that the caller is a member of this organization, and that they are at least
      * an organizational admin. It's a stronger check than `checkOrgMembership`. 
      */
+    public static boolean isOrgAdmin(String orgId) {
+        return isInOrganization(orgId) && isInRoles(null, ADMIN, ORG_ADMIN);
+    }
+    
     public static void checkOrgAdmin(String orgId) {
-        if (!(isInOrganization(orgId) && isInRoles(null, ADMIN, ORG_ADMIN))) {
+        if (!isOrgAdmin(orgId)) {
             throw new UnauthorizedException("Caller is not an admin of " + orgId);
         }
     }
@@ -121,7 +135,7 @@ public class AuthUtils {
         return context.isInRole(ADMIN) || orgId.equals(context.getCallerOrgMembership());
     }
     
-    private static final boolean isSelf(String userId) {
+    public static final boolean isSelf(String userId) {
         return userId != null && userId.equals(RequestContext.get().getCallerUserId());
     }
 }

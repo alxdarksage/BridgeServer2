@@ -289,7 +289,7 @@ public class ParticipantControllerTest extends Mockito {
         assertCreate(ParticipantController.class, "createSmsRegistration");
         assertGet(ParticipantController.class, "getSelfParticipant");
         assertPost(ParticipantController.class, "updateSelfParticipant");
-        assertDelete(ParticipantController.class, "deleteTestParticipant");
+        assertDelete(ParticipantController.class, "deleteParticipant");
         assertGet(ParticipantController.class, "getActivityEventsForWorker");
         assertGet(ParticipantController.class, "getActivityHistoryForWorkerV3");
         assertGet(ParticipantController.class, "getActivityHistoryForWorkerV2");
@@ -1479,32 +1479,15 @@ public class ParticipantControllerTest extends Mockito {
         assertFalse(retrieved.getItems().isEmpty());
     }
 
+    // This method no longer contains authorization logic, it has been moved to the service
     @Test
-    public void deleteTestUserWorks() {
-        participant = new StudyParticipant.Builder().copyOf(participant).withDataGroups(ImmutableSet.of("test_user"))
-                .build();
+    public void deleteUserWorks() {
+        participant = new StudyParticipant.Builder().copyOf(participant).build();
 
         when(mockParticipantService.getParticipant(app, USER_ID, false)).thenReturn(participant);
-        controller.deleteTestParticipant(USER_ID);
+        controller.deleteParticipant(USER_ID);
 
-        verify(mockUserAdminService).deleteUser(app, USER_ID);
-    }
-
-    @Test(expectedExceptions = UnauthorizedException.class)
-    public void deleteTestUserNotAResearcher() {
-        participant = new StudyParticipant.Builder().copyOf(participant).withRoles(ImmutableSet.of(Roles.DEVELOPER))
-                .withId("notUserId").build();
-        session.setParticipant(participant);
-
-        controller.deleteTestParticipant(USER_ID);
-    }
-
-    @Test(expectedExceptions = UnauthorizedException.class)
-    public void deleteTestUserNotATestAccount() {
-        participant = new StudyParticipant.Builder().copyOf(participant).withDataGroups(EMPTY_SET).build();
-
-        when(mockParticipantService.getParticipant(app, USER_ID, false)).thenReturn(participant);
-        controller.deleteTestParticipant(USER_ID);
+        verify(mockUserAdminService).deleteUser(TEST_APP_ID, USER_ID);
     }
 
     @SuppressWarnings("deprecation")

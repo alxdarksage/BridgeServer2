@@ -2,6 +2,8 @@ package org.sagebionetworks.bridge.validators;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
+import static org.sagebionetworks.bridge.Roles.SUPERADMIN;
 
 import java.util.Optional;
 import java.util.Set;
@@ -11,7 +13,7 @@ import org.springframework.validation.Validator;
 
 import org.sagebionetworks.bridge.AuthUtils;
 import org.sagebionetworks.bridge.BridgeUtils;
-import org.sagebionetworks.bridge.Roles;
+import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.models.accounts.ExternalIdentifier;
 import org.sagebionetworks.bridge.models.accounts.Phone;
 import org.sagebionetworks.bridge.models.accounts.StudyParticipant;
@@ -84,19 +86,24 @@ public class StudyParticipantValidator implements Validator {
             
             // After account creation, organizational membership cannot be changed by updating an account
             // Instead, use the OrganizationService
-            if (participant.getRoles().contains(Roles.ORG_ADMIN) && isBlank(participant.getOrgMembership())) {
+            if (participant.getRoles().contains(ORG_ADMIN) && isBlank(participant.getOrgMembership())) {
                 errors.rejectValue("orgMembership", "must be assigned for an organization admin");
             }
-            if (isNotBlank(participant.getOrgMembership())) {
-                String orgId = participant.getOrgMembership();
+            RequestContext context = RequestContext.get();
+            String orgId = participant.getOrgMembership();
+            if (isNotBlank(orgId)) {
                 Optional<Organization> opt = organizationService.getOrganizationOpt(app.getIdentifier(), orgId);
                 if (!opt.isPresent()) {
                     errors.rejectValue("orgMembership", "is not a valid organization");
                 } else if (!AuthUtils.isInOrganization(orgId)) {
-                    errors.rejectValue("orgMembership", "cannot be set by caller");
+                    errors.rejectValue("orgMembership", 
+                            String.format("cannot be set to '%s' by caller", orgId));
                 }
+            } else if (context.isInRole(ORG_ADMIN) && !context.isInRole(SUPERADMIN)) {
+                // orgId is empty  and the caller is an organization administrator, this is not valid. They
+                // must set the value and it must be their orgMembership (for now).
+                errors.rejectValue("orgMembership", "cannot be left blank");
             }
-            
         } else {
             if (isBlank(participant.getId())) {
                 errors.rejectValue("id", "is required");

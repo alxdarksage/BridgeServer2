@@ -131,9 +131,8 @@ public class UserManagementController extends BaseController {
     @DeleteMapping("/v3/users/{userId}")
     public StatusMessage deleteUser(@PathVariable String userId) {
         UserSession session = getAuthenticatedSession(ADMIN);
-        App app = appService.getApp(session.getAppId());
         
-        userAdminService.deleteUser(app, userId);
+        userAdminService.deleteUser(session.getAppId(), userId);
         
         return DELETED_MSG;
     }

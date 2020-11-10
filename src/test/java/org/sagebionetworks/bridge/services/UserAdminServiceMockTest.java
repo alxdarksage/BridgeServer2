@@ -8,7 +8,13 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.sagebionetworks.bridge.BridgeConstants.TEST_USER_GROUP;
+import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.DEVELOPER;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
+import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
+import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
@@ -313,10 +319,10 @@ public class UserAdminServiceMockTest {
     }
     
     @Test
-    public void deleteUser() {
-        App app = TestUtils.getValidApp(UserAdminServiceMockTest.class);
-        
-        AccountId accountId = AccountId.forId(app.getIdentifier(),  "userId");
+    public void deleteUserAsAdmin() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(ADMIN)).build());
+        AccountId accountId = AccountId.forId(TEST_APP_ID,  "userId");
 
         Enrollment en1 = Enrollment.create(TEST_APP_ID, "studyA", "userId", "subAextId");
         Enrollment en2 = Enrollment.create(TEST_APP_ID, "studyB", "userId", "subBextId");
@@ -327,14 +333,14 @@ public class UserAdminServiceMockTest {
         doReturn(enrollments).when(account).getActiveEnrollments();
         doReturn(account).when(accountService).getAccount(accountId);
         
-        service.deleteUser(app, "userId");
+        service.deleteUser(TEST_APP_ID, "userId");
         
         // Verify a lot of stuff is deleted or removed
         verify(cacheProvider).removeSessionByUserId("userId");
         verify(requestInfoService).removeRequestInfo("userId");
         verify(healthDataService).deleteRecordsForHealthCode("healthCode");
         verify(healthDataEx3Service).deleteRecordsForHealthCode("healthCode");
-        verify(notificationsService).deleteAllRegistrations(app.getIdentifier(), "healthCode");
+        verify(notificationsService).deleteAllRegistrations(TEST_APP_ID, "healthCode");
         verify(uploadService).deleteUploadsForHealthCode("healthCode");
         verify(scheduledActivityService).deleteActivitiesForUser("healthCode");
         verify(activityEventService).deleteActivityEvents("healthCode");
@@ -346,10 +352,61 @@ public class UserAdminServiceMockTest {
     }
     
     @Test
-    public void deleteUserNotFound() {
-        App app = TestUtils.getValidApp(UserAdminServiceMockTest.class);
+    public void deleteTestUserAsSelf() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerUserId(USER_ID)
+                .withCallerRoles(ImmutableSet.of(DEVELOPER)).build());
+        AccountId accountId = AccountId.forId(TEST_APP_ID,  USER_ID);
+
+        doReturn(USER_ID).when(account).getId();
+        doReturn("healthCode").when(account).getHealthCode();
+        doReturn(ImmutableSet.of(TEST_USER_GROUP)).when(account).getDataGroups();
+        doReturn(account).when(accountService).getAccount(accountId);
         
-        service.deleteUser(app, "userId");
+        // does not throw an exception
+        service.deleteUser(TEST_APP_ID, USER_ID);
+    }
+    
+    @Test
+    public void deleteTestUserAsResearcher() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerRoles(ImmutableSet.of(RESEARCHER)).build());
+        AccountId accountId = AccountId.forId(TEST_APP_ID,  USER_ID);
+
+        doReturn(USER_ID).when(account).getId();
+        doReturn("healthCode").when(account).getHealthCode();
+        doReturn(ImmutableSet.of(TEST_USER_GROUP)).when(account).getDataGroups();
+        doReturn(account).when(accountService).getAccount(accountId);
+        
+        // does not throw an exception
+        service.deleteUser(TEST_APP_ID, USER_ID);
+    }
+
+    @Test
+    public void deleteUserAsOrgAdmin() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN)).build());
+        AccountId accountId = AccountId.forId(TEST_APP_ID,  "userId");
+
+        Enrollment en1 = Enrollment.create(TEST_APP_ID, "studyA", "userId", "subAextId");
+        Enrollment en2 = Enrollment.create(TEST_APP_ID, "studyB", "userId", "subBextId");
+        Set<Enrollment> enrollments = ImmutableSet.of(en1, en2);
+        
+        doReturn("userId").when(account).getId();
+        doReturn("healthCode").when(account).getHealthCode();
+        doReturn(enrollments).when(account).getActiveEnrollments();
+        doReturn(TEST_ORG_ID).when(account).getOrgMembership();
+        doReturn(ImmutableSet.of(DEVELOPER)).when(account).getRoles();
+        doReturn(account).when(accountService).getAccount(accountId);
+        
+        // does not throw an exception
+        service.deleteUser(TEST_APP_ID, "userId");
+    }
+    
+    @Test
+    public void deleteUserNotFound() {
+        service.deleteUser(TEST_APP_ID, "userId");
         
         // (it very quietly does nothing)
         verify(cacheProvider, never()).removeSessionByUserId(any());

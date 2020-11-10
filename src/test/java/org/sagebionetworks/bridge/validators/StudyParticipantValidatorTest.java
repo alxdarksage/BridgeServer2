@@ -1,6 +1,7 @@
 package org.sagebionetworks.bridge.validators;
 
 import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
+import static org.sagebionetworks.bridge.Roles.SUPERADMIN;
 import static org.sagebionetworks.bridge.TestConstants.SYNAPSE_USER_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestConstants.TEST_ORG_ID;
@@ -445,13 +446,14 @@ public class StudyParticipantValidatorTest {
         
         StudyParticipant participant = withMemberOrganization(TEST_ORG_ID);
         validator = makeValidator(true);
-        assertValidatorMessage(validator, participant, "orgMembership", "cannot be set by caller");
+        assertValidatorMessage(validator, participant, "orgMembership",
+                "cannot be set to '" + TEST_ORG_ID + "' by caller");
     }
     @Test
     public void validateOrgCanBeDifferentFromSuperadmin() {
         RequestContext.set(new RequestContext.Builder()
                 .withCallerOrgMembership("someOtherOrgId")
-                .withCallerRoles(ImmutableSet.of(Roles.SUPERADMIN))
+                .withCallerRoles(ImmutableSet.of(SUPERADMIN))
                 .build());
         
         when(mockOrganizationService.getOrganizationOpt(TEST_APP_ID, TEST_ORG_ID))
@@ -459,6 +461,48 @@ public class StudyParticipantValidatorTest {
         
         StudyParticipant participant = withMemberOrganization(TEST_ORG_ID);
         validator = makeValidator(true);
+        Validate.entityThrowingException(validator, participant);
+    }
+    @Test
+    public void validateOrgAdminHasNotSetOrgMembership() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .build());
+        
+        StudyParticipant participant = withMemberOrganization(null);
+        validator = makeValidator(true);
+        
+        assertValidatorMessage(validator, participant, "orgMembership", "cannot be left blank");
+    }
+    @Test
+    public void validateOrgAdminHasSetOrgMembershipWrong() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .build());
+        
+        when(mockOrganizationService.getOrganizationOpt(TEST_APP_ID, "some-other-study"))
+            .thenReturn(Optional.of(Organization.create()));
+        
+        StudyParticipant participant = withMemberOrganization("some-other-study");
+        validator = makeValidator(true);
+        
+        assertValidatorMessage(validator, participant, "orgMembership", "cannot be set to 'some-other-study' by caller");
+    }
+    @Test
+    public void validateOrgAdminHasSetOrgMembershipCorrectly() {
+        RequestContext.set(new RequestContext.Builder()
+                .withCallerOrgMembership(TEST_ORG_ID)
+                .withCallerRoles(ImmutableSet.of(ORG_ADMIN))
+                .build());
+        
+        when(mockOrganizationService.getOrganizationOpt(TEST_APP_ID, TEST_ORG_ID))
+            .thenReturn(Optional.of(Organization.create()));
+        
+        StudyParticipant participant = withMemberOrganization(TEST_ORG_ID);
+        validator = makeValidator(true);
+        
         Validate.entityThrowingException(validator, participant);
     }
     @Test

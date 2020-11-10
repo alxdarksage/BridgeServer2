@@ -181,10 +181,11 @@ public class OrganizationService {
         getOrganization(appId, identifier);
         
         checkOrgMembership(identifier);
-        
+
+        // Only administrative accounts have orgMembership fields set, so it's not necessary
+        // to limit scope of search to administrative accounts.
         AccountSummarySearch scopedSearch = new AccountSummarySearch.Builder()
                 .copyOf(search)
-                .withAdminOnly(true)
                 .withOrgMembership(identifier).build();
         
         return accountDao.getPagedAccountSummaries(appId, scopedSearch);

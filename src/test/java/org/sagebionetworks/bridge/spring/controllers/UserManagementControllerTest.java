@@ -272,6 +272,6 @@ public class UserManagementControllerTest extends Mockito {
         StatusMessage result = controller.deleteUser(USER_ID);
         assertEquals(result, UserManagementController.DELETED_MSG);
 
-        verify(mockUserAdminService).deleteUser(mockApp, USER_ID);
+        verify(mockUserAdminService).deleteUser(TEST_APP_ID, USER_ID);
     }
 }

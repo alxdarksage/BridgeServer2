@@ -2,14 +2,21 @@ package org.sagebionetworks.bridge.services;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.sagebionetworks.bridge.BridgeConstants.TEST_USER_GROUP;
+import static org.sagebionetworks.bridge.Roles.ADMIN;
+import static org.sagebionetworks.bridge.Roles.ORG_ADMIN;
 import static org.sagebionetworks.bridge.models.accounts.SharingScope.NO_SHARING;
 
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+
+import org.sagebionetworks.bridge.AuthUtils;
 import org.sagebionetworks.bridge.BridgeUtils;
+import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.cache.CacheProvider;
 import org.sagebionetworks.bridge.exceptions.ConsentRequiredException;
+import org.sagebionetworks.bridge.exceptions.UnauthorizedException;
 import org.sagebionetworks.bridge.time.DateUtils;
 import org.sagebionetworks.bridge.models.CriteriaContext;
 import org.sagebionetworks.bridge.models.accounts.Account;
@@ -176,7 +183,7 @@ public class UserAdminService {
             // Created the account, but failed to process the account properly. To avoid leaving behind a bunch of test
             // accounts, delete this account.
             if (identifier != null) {
-                deleteUser(app, identifier.getIdentifier());    
+                deleteUser(app.getIdentifier(), identifier.getIdentifier());    
             }
             throw e;
         }
@@ -185,18 +192,32 @@ public class UserAdminService {
     /**
      * Delete the target user.
      *
-     * @param app
-     *      target user's app
+     * @param appId
+     *      target user's app Id
      * @param id
      *      target user's ID
      */
-    public void deleteUser(App app, String id) {
-        checkNotNull(app);
+    public void deleteUser(String appId, String id) {
+        checkNotNull(appId);
         checkArgument(StringUtils.isNotBlank(id));
         
-        AccountId accountId = AccountId.forId(app.getIdentifier(), id);
+        AccountId accountId = AccountId.forId(appId, id);
         Account account = accountService.getAccount(accountId);
         if (account != null) {
+            RequestContext context = RequestContext.get();
+            // accounts can be deleted if:
+            // 1. org_admin caller is deleting an administrative account in their org
+            // 2. account is a test account and caller is self, researcher
+            // 3. caller is an admin.
+            boolean orgAdminDelete = context.isInRole(ORG_ADMIN) && !account.getRoles().isEmpty() && 
+                    context.getCallerOrgMembership().equals(account.getOrgMembership());
+            boolean testDelete = AuthUtils.isSelfResearcherOrAdmin(context.getCallerUserId()) &&
+                    account.getDataGroups().contains(TEST_USER_GROUP);
+            boolean adminDelete = context.isInRole(ADMIN);
+            
+            if (!orgAdminDelete && !testDelete && !adminDelete) {
+                throw new UnauthorizedException();
+            }
             // remove this first so if account is partially deleted, re-authenticating will pick
             // up accurate information about the state of the account (as we can recover it)
             cacheProvider.removeSessionByUserId(account.getId());
@@ -205,7 +226,7 @@ public class UserAdminService {
             String healthCode = account.getHealthCode();
             healthDataService.deleteRecordsForHealthCode(healthCode);
             healthDataEx3Service.deleteRecordsForHealthCode(healthCode);
-            notificationsService.deleteAllRegistrations(app.getIdentifier(), healthCode);
+            notificationsService.deleteAllRegistrations(appId, healthCode);
             uploadService.deleteUploadsForHealthCode(healthCode);
             scheduledActivityService.deleteActivitiesForUser(healthCode);
             activityEventService.deleteActivityEvents(healthCode);

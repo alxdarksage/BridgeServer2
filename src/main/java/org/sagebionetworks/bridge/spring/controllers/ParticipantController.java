@@ -42,7 +42,6 @@ import org.sagebionetworks.bridge.BridgeConstants;
 import org.sagebionetworks.bridge.BridgeUtils;
 import org.sagebionetworks.bridge.RequestContext;
 import org.sagebionetworks.bridge.exceptions.EntityNotFoundException;
-import org.sagebionetworks.bridge.exceptions.UnauthorizedException;
 import org.sagebionetworks.bridge.models.AccountSummarySearch;
 import org.sagebionetworks.bridge.models.CriteriaContext;
 import org.sagebionetworks.bridge.models.ForwardCursorPagedResourceList;
@@ -172,17 +171,12 @@ public class ParticipantController extends BaseController {
     }
     
     @DeleteMapping("/v3/participants/{userId}")
-    public StatusMessage deleteTestParticipant(@PathVariable String userId) {
+    public StatusMessage deleteParticipant(@PathVariable String userId) {
         UserSession session = getAdministrativeSession();
-        checkSelfResearcherOrAdmin(userId);
-        App app = appService.getApp(session.getAppId());
         
-        StudyParticipant participant = participantService.getParticipant(app, userId, false);
-        if (!participant.getDataGroups().contains(BridgeConstants.TEST_USER_GROUP)) {
-            throw new UnauthorizedException("Account is not a test account.");
-        }
-        userAdminService.deleteUser(app, userId);
-        
+        // business logic about deleting test users has been moved to the service
+        // and expanded there.
+        userAdminService.deleteUser(session.getAppId(), userId);
         return new StatusMessage("User deleted.");
     }
 
