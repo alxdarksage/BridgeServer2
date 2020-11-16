@@ -204,6 +204,14 @@ public class AuthUtilsTest extends Mockito {
         AuthUtils.checkSelfResearcherOrAdmin(USER_ID);
     }
     
+    @Test(expectedExceptions = UnauthorizedException.class)
+    public void checkStudyScopedToCaller() { 
+        RequestContext.set(new RequestContext.Builder()
+                .withOrgSponsoredStudies(ImmutableSet.of("studyA", "studyB")).build());
+        
+        AuthUtils.checkStudyScopedToCaller(TEST_STUDY_ID);
+    }
+    
     @Test
     public void isInRoleNullStudyIdAndAdmin() {
         RequestContext.set(new RequestContext.Builder()

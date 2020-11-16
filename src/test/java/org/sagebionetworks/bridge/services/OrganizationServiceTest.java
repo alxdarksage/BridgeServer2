@@ -304,7 +304,7 @@ public class OrganizationServiceTest extends Mockito {
         verify(mockAccountDao).getPagedAccountSummaries(eq(TEST_APP_ID), searchCaptor.capture());
         assertEquals(searchCaptor.getValue().getLanguage(), "en");
         assertEquals(searchCaptor.getValue().getOrgMembership(), IDENTIFIER);
-        assertTrue(searchCaptor.getValue().isAdminOnly());
+        assertNull(searchCaptor.getValue().isAdminOnly());
     }
     
     @Test
@@ -360,7 +360,7 @@ public class OrganizationServiceTest extends Mockito {
         
         service.addMember(TEST_APP_ID, IDENTIFIER, ACCOUNT_ID);
         
-        verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
+        verify(mockAccountDao).updateAccount(accountCaptor.capture());
         assertEquals(accountCaptor.getValue().getOrgMembership(), IDENTIFIER);
         
         verify(mockSessionUpdateService).updateOrgMembership(USER_ID, IDENTIFIER);
@@ -399,7 +399,7 @@ public class OrganizationServiceTest extends Mockito {
         
         service.addMember(TEST_APP_ID, IDENTIFIER, ACCOUNT_ID);
         
-        verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
+        verify(mockAccountDao).updateAccount(accountCaptor.capture());
         
         assertEquals(accountCaptor.getValue().getOrgMembership(), IDENTIFIER);
     }
@@ -447,7 +447,7 @@ public class OrganizationServiceTest extends Mockito {
 
         service.removeMember(TEST_APP_ID, IDENTIFIER, ACCOUNT_ID);
         
-        verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
+        verify(mockAccountDao).updateAccount(accountCaptor.capture());
         assertNull(accountCaptor.getValue().getOrgMembership());
         
         verify(mockSessionUpdateService).updateOrgMembership(USER_ID, null);
@@ -488,7 +488,7 @@ public class OrganizationServiceTest extends Mockito {
 
         service.removeMember(TEST_APP_ID, IDENTIFIER, ACCOUNT_ID);
         
-        verify(mockAccountDao).updateAccount(accountCaptor.capture(), isNull());
+        verify(mockAccountDao).updateAccount(accountCaptor.capture());
         assertNull(accountCaptor.getValue().getOrgMembership());
     }
 

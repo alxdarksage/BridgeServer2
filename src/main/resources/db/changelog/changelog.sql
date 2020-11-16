@@ -414,5 +414,12 @@ ADD COLUMN `minutesToComplete` int(10) DEFAULT NULL;
 
 -- changeset bridge:21
 
+-- This constraint was enforced in DynamoDB table, and is now enforced in associative table
+-- an externalId must be unique in the context of an app.
+ALTER TABLE AccountsSubstudies
+ADD CONSTRAINT `unique_extId` UNIQUE (studyId, externalId);
+
+-- changeset bridge:22
+
 ALTER TABLE `AccountRoles`
 MODIFY COLUMN `role` enum('DEVELOPER','RESEARCHER','ADMIN','ORG_ADMIN','WORKER','SUPERADMIN') NOT NULL;
