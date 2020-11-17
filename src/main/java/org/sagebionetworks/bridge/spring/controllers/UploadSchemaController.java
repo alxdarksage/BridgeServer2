@@ -189,7 +189,7 @@ public class UploadSchemaController extends BaseController {
     @GetMapping(path="/v3/uploadschemas", produces={APPLICATION_JSON_UTF8_VALUE})
     public String getUploadSchemasForApp(@RequestParam(defaultValue = "false") boolean includeDeleted)
             throws Exception {
-        UserSession session = getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        UserSession session = getAdministrativeSession();
         String appId = session.getAppId();
 
         List<UploadSchema> schemaList = uploadSchemaService.getUploadSchemasForApp(appId, Boolean.valueOf(includeDeleted));

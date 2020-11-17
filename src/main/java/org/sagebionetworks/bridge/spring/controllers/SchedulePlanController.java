@@ -55,7 +55,7 @@ public class SchedulePlanController extends BaseController {
 
     @GetMapping("/v3/scheduleplans")
     public ResourceList<SchedulePlan> getSchedulePlans(@RequestParam(defaultValue = "false") boolean includeDeleted) {
-        UserSession session = getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        UserSession session = getAdministrativeSession();
         String appId = session.getAppId();
 
         // We don't filter plans when we return a list of all of them for developers.

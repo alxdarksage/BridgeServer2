@@ -42,7 +42,7 @@ public class SubpopulationController extends BaseController {
 
     @GetMapping(path="/v3/subpopulations", produces={APPLICATION_JSON_UTF8_VALUE})
     public String getAllSubpopulations(@RequestParam(defaultValue = "false") boolean includeDeleted) throws Exception {
-        UserSession session = getAuthenticatedSession(DEVELOPER);
+        UserSession session = getAdministrativeSession();
 
         List<Subpopulation> subpopulations = subpopService.getSubpopulations(session.getAppId(),
                 includeDeleted);

@@ -61,7 +61,7 @@ public class SurveyController extends BaseController {
     @GetMapping("/v3/surveys")
     public ResourceList<Survey> getAllSurveysMostRecentVersion(
             @RequestParam(defaultValue = "false") boolean includeDeleted) {
-        UserSession session = getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        UserSession session = getAdministrativeSession();
         String appId = session.getAppId();
 
         List<Survey> surveys = surveyService.getAllSurveysMostRecentVersion(appId, includeDeleted);
