@@ -2,7 +2,6 @@ package org.sagebionetworks.bridge.spring.controllers;
 
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.DEVELOPER;
-import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.Roles.WORKER;
 import static org.sagebionetworks.bridge.models.upload.UploadSchema.PUBLIC_SCHEMA_WRITER;
 import static org.springframework.http.MediaType.APPLICATION_JSON_UTF8_VALUE;

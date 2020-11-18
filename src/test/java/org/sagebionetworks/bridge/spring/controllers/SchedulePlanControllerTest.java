@@ -2,7 +2,6 @@ package org.sagebionetworks.bridge.spring.controllers;
 
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.DEVELOPER;
-import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.Roles.WORKER;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
 import static org.sagebionetworks.bridge.TestUtils.assertCreate;
@@ -153,7 +152,7 @@ public class SchedulePlanControllerTest extends Mockito {
     
     @Test
     public void getSchedulePlansExcludeDeleted() throws Exception {
-        doReturn(mockUserSession).when(controller).getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        doReturn(mockUserSession).when(controller).getAdministrativeSession();
         List<SchedulePlan> plans = ImmutableList.of(getSimpleSchedulePlan(TEST_APP_ID));
         
         when(mockSchedulePlanService.getSchedulePlans(UNKNOWN_CLIENT, TEST_APP_ID, false)).thenReturn(plans);
@@ -168,7 +167,7 @@ public class SchedulePlanControllerTest extends Mockito {
     
     @Test
     public void getSchedulePlansIncludeDeleted() throws Exception {
-        doReturn(mockUserSession).when(controller).getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        doReturn(mockUserSession).when(controller).getAdministrativeSession();
         List<SchedulePlan> plans = ImmutableList.of(getSimpleSchedulePlan(TEST_APP_ID));
         when(mockSchedulePlanService.getSchedulePlans(UNKNOWN_CLIENT, TEST_APP_ID, true)).thenReturn(plans);
         

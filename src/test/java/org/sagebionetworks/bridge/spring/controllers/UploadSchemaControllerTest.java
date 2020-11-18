@@ -350,6 +350,7 @@ public class UploadSchemaControllerTest extends Mockito {
         UploadSchemaController controller = spy(new UploadSchemaController());
         controller.setUploadSchemaService(svc);
         doReturn(mockSession).when(controller).getAuthenticatedSession(role1, role2);
+        doReturn(mockSession).when(controller).getAdministrativeSession();
 
         // mock request JSON
         HttpServletRequest mockRequest = mock(HttpServletRequest.class);

@@ -92,6 +92,7 @@ public class SubpopulationControllerTest extends Mockito {
 
         when(mockApp.getIdentifier()).thenReturn(TEST_APP_ID);
         doReturn(session).when(controller).getSessionIfItExists();
+        doReturn(session).when(controller).getAdministrativeSession();
         when(mockAppService.getApp(TEST_APP_ID)).thenReturn(mockApp);
 
         doReturn(mockRequest).when(controller).request();
@@ -251,14 +252,6 @@ public class SubpopulationControllerTest extends Mockito {
         controller.deleteSubpopulation(SUBPOP_GUID.getGuid(), true);
 
         verify(mockSubpopService).deleteSubpopulation(TEST_APP_ID, SUBPOP_GUID);
-    }
-
-    @Test(expectedExceptions = UnauthorizedException.class)
-    public void getAllSubpopulationsRequiresDeveloper() throws Exception {
-        session.setParticipant(
-                new StudyParticipant.Builder().copyOf(participant).withRoles(ImmutableSet.of(ADMIN)).build());
-
-        controller.getAllSubpopulations(false);
     }
 
     @Test(expectedExceptions = UnauthorizedException.class)

@@ -3,7 +3,6 @@ package org.sagebionetworks.bridge.spring.controllers;
 import static org.sagebionetworks.bridge.BridgeConstants.BRIDGE_VIEW_EXPIRE_IN_SECONDS;
 import static org.sagebionetworks.bridge.Roles.ADMIN;
 import static org.sagebionetworks.bridge.Roles.DEVELOPER;
-import static org.sagebionetworks.bridge.Roles.RESEARCHER;
 import static org.sagebionetworks.bridge.Roles.WORKER;
 import static org.sagebionetworks.bridge.TestConstants.CONSENTED_STATUS_MAP;
 import static org.sagebionetworks.bridge.TestConstants.TEST_APP_ID;
@@ -200,7 +199,7 @@ public class SurveyControllerTest extends Mockito {
     public void getAllSurveysMostRecentVersionDoNotIncludeDeleted() throws Exception {
         setupContext(TEST_APP_ID, UNCONSENTED, DEVELOPER);
         
-        doReturn(session).when(controller).getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        doReturn(session).when(controller).getAdministrativeSession();
         when(mockSurveyService.getAllSurveysMostRecentVersion(TEST_APP_ID, false)).thenReturn(getSurveys(3, false));
         
         controller.getAllSurveysMostRecentVersion(false);
@@ -212,7 +211,7 @@ public class SurveyControllerTest extends Mockito {
     @Test
     public void getAllSurveysMostRecentVersionIncludeDeleted() throws Exception {
         setupContext(TEST_APP_ID, UNCONSENTED, DEVELOPER);
-        doReturn(session).when(controller).getAuthenticatedSession(DEVELOPER, RESEARCHER);
+        doReturn(session).when(controller).getAdministrativeSession();
         when(mockSurveyService.getAllSurveysMostRecentVersion(TEST_APP_ID, true)).thenReturn(getSurveys(3, false));
         
         controller.getAllSurveysMostRecentVersion(true);
