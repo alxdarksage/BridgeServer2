@@ -1,6 +1,7 @@
 
 package org.sagebionetworks.bridge.hibernate;
 
+import static java.lang.Boolean.TRUE;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import org.sagebionetworks.bridge.AuthUtils;
 import org.sagebionetworks.bridge.BridgeUtils;
@@ -157,18 +159,26 @@ public class HibernateAccountDao implements AccountDao {
             if (search.getLanguage() != null) {
                 builder.append("AND :language IN ELEMENTS(acct.languages)", "language", search.getLanguage());
             }
+            if (search.getStudyId() != null) {
+                builder.append("AND enrollment.studyId IN (:studies)", "studies", ImmutableSet.of(search.getStudyId()));
+            }
+            Set<String> callerStudies = context.getOrgSponsoredStudies();
+            if (!TRUE.equals(search.isAdminOnly())) {
+                if (search.getStudyId() != null && callerStudies.contains(search.getStudyId())) {
+                    // 1) search for enrolled accounts in a specific study, if the caller has permission.
+                    builder.append("AND enrollment.studyId IN (:studies)", "studies", ImmutableSet.of(search.getStudyId()));
+                } else if (!AuthUtils.isStudyTeamMemberOrWorker(null)) {
+                    // 2) only return accounts in studies that the caller has access to through their 
+                    // organizational affiliation.
+                    builder.append("AND enrollment.studyId IN (:studies)", "studies", callerStudies);
+                } 
+            }
             builder.adminOnly(search.isAdminOnly());
             builder.orgMembership(search.getOrgMembership());
             builder.dataGroups(search.getAllOfGroups(), "IN");
             builder.dataGroups(search.getNoneOfGroups(), "NOT IN");
         }
         
-        // If the caller is a member of an organization, then they can only see accounts in the studies 
-        // sponsored by that organization. ADMIN accounts are exempt from this requirement.
-        if (!AuthUtils.isStudyTeamMemberOrWorker(null)) {
-            Set<String> callerStudies = context.getOrgSponsoredStudies();
-            builder.append("AND enrollment.studyId IN (:studies)", "studies", callerStudies);
-        }
         if (!isCount) {
             builder.append("GROUP BY acct.id");
         }
